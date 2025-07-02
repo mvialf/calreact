@@ -155,7 +155,7 @@ export const addPayment = async (paymentData: PaymentImportData | Omit<Payment, 
     if (!projectSnapshot.exists()) {
       throw new Error(`Project with ID ${paymentData.projectId} does not exist.`);
     }
-
+    //Obtener el saldo actual
     const projectData = projectSnapshot.data() as ProjectDocument;
     const currentBalance = projectData.balance || 0;
 
@@ -230,29 +230,115 @@ export const addPayment = async (paymentData: PaymentImportData | Omit<Payment, 
   }
 };
 
-export const updatePayment = async (paymentId: string, paymentData: Partial<Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> => {
-  // Note: This function does not currently recalculate project balance if payment amount changes.
-  // That would require fetching the old payment amount, the project, calculating the difference, and then updating.
-  // For simplicity, this is left out, but it's a consideration for full financial accuracy.
-  const paymentDocRef = doc(db, PAYMENTS_COLLECTION, paymentId);
+export const updatePayment = async (
+  paymentId: string, 
+  paymentData: Partial<Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>>,
+  firestore = db
+): Promise<void> => {
+  const batch = writeBatch(firestore);
+  const paymentRef = doc(firestore, PAYMENTS_COLLECTION, paymentId);
   
+  // 1. Obtener el pago actual
+  const paymentSnap = await getDoc(paymentRef);
+  if (!paymentSnap.exists()) {
+    throw new Error(`Pago con ID ${paymentId} no encontrado.`);
+  }
+  
+  const currentPayment = paymentFromDoc(paymentSnap);
+  const projectId = currentPayment.projectId;
+  const projectRef = doc(firestore, PROJECTS_COLLECTION, projectId);
+
+  // 2. Si el monto cambió, actualizar el balance del proyecto
+  if (paymentData.amount !== undefined && 
+      currentPayment.amount !== undefined && 
+      paymentData.amount !== currentPayment.amount) {
+    const projectSnap = await getDoc(projectRef);
+    if (!projectSnap.exists()) {
+      throw new Error(`Proyecto con ID ${projectId} no encontrado.`);
+    }
+    
+    const projectData = projectSnap.data() as ProjectDocument;
+    const currentBalance = projectData.balance || 0;
+    const amountDiff = paymentData.amount - (currentPayment.amount || 0);
+    
+    // Ajustar el balance según si es un ajuste o no
+    const balanceAdjustment = currentPayment.isAdjustment ? -amountDiff : amountDiff;
+    
+    // Actualizar el balance del proyecto
+    batch.update(projectRef, {
+      balance: currentBalance - balanceAdjustment,
+      updatedAt: serverTimestamp()
+    });
+    
+    console.log(`Actualizando balance del proyecto ${projectId}: ${currentBalance} -> ${currentBalance - balanceAdjustment}`);
+  }
+
+  // 3. Actualizar los datos del pago
   const dataToUpdate: { [key: string]: any } = { 
-    updatedAt: serverTimestamp() as Timestamp,
+    updatedAt: serverTimestamp(),
   };
 
   (Object.keys(paymentData) as Array<keyof typeof paymentData>).forEach(key => {
     if (paymentData[key] !== undefined) { 
       if (key === 'date' && paymentData.date) {
-        dataToUpdate.date = Timestamp.fromDate(new Date(paymentData.date));
+        dataToUpdate.date = Timestamp.fromDate(
+          paymentData.date instanceof Date ? paymentData.date : new Date(paymentData.date)
+        );
       } else {
         dataToUpdate[key] = paymentData[key];
       }
     }
   });
 
-  if (Object.keys(dataToUpdate).length > 1) { // Only update if there's more than just updatedAt
-    await updateDoc(paymentDocRef, dataToUpdate);
+  batch.update(paymentRef, dataToUpdate);
+
+  try {
+    await batch.commit();
+    console.log(`Pago ${paymentId} actualizado exitosamente.`);
+  } catch (error) {
+    console.error("Error actualizando pago y balance del proyecto:", error);
+    throw error;
   }
+};
+
+/**
+ * Corrige el balance de un proyecto recalculándolo a partir de todos sus pagos
+ * @param projectId ID del proyecto a corregir
+ * @param firestore Instancia opcional de Firestore (para testing)
+ * @returns El nuevo balance calculado
+ */
+export const fixProjectBalance = async (projectId: string, firestore = db): Promise<number> => {
+  console.log(`Recalculando balance para proyecto ${projectId}...`);
+  
+  // Obtener todos los pagos del proyecto
+  const paymentsSnapshot = await getDocs(
+    query(
+      collection(firestore, PAYMENTS_COLLECTION),
+      where('projectId', '==', projectId)
+    )
+  );
+  
+  let calculatedBalance = 0;
+  
+  // Calcular el balance sumando/restando los montos de los pagos
+  paymentsSnapshot.forEach((doc) => {
+    const payment = doc.data() as Payment;
+    if (payment.isAdjustment) {
+      calculatedBalance -= payment.amount || 0;
+    } else {
+      calculatedBalance += payment.amount || 0;
+    }
+  });
+  
+  // Actualizar el balance del proyecto
+  const projectRef = doc(firestore, PROJECTS_COLLECTION, projectId);
+  await updateDoc(projectRef, {
+    balance: calculatedBalance,
+    updatedAt: serverTimestamp()
+  });
+  
+  console.log(`Balance del proyecto ${projectId} corregido a: ${calculatedBalance}`);
+  return calculatedBalance;
 };
 
 

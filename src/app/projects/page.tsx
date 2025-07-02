@@ -465,9 +465,11 @@ export default function ProjectsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <span>{formatCurrency(project.totalPayments)}</span>
+                            <div>
+                              <span>{formatCurrency(project.totalPayments)}</span>
+                            </div> 
                             <Badge variant={getPaymentPercentageBadgeVariant(project.totalPaymentPercentage)}>
-                              {project.totalPaymentPercentage.toFixed(0)}%
+                                {project.totalPaymentPercentage.toFixed(0)}%
                             </Badge>
                           </div>
                         </TableCell>
