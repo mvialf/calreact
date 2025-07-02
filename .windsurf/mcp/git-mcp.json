@@ -1,0 +1,9 @@
+{
+  "servers": [
+    {
+      "name": "git",
+      "url": "https://gitmcp.io/mvialf/calreact",
+      "description": "MCP de Git para el repositorio calreact"
+    }
+  ]
+}
