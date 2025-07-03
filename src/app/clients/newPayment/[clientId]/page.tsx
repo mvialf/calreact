@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 
 import { getClientById } from '@/services/clientService';
-import { getProjects } from '@/services/projectService';
+import { getProjects, calculateProjectBalance } from '@/services/projectService';
 import { addPayment, getPaymentsForProject } from '@/services/paymentService';
 import { ProjectType } from '@/types/project';
 import { PaymentMethod, Payment } from '@/types/payment';
@@ -114,7 +114,7 @@ export default function NewClientPaymentPage() {
             );
             
             // Calcular balance real
-            const calculatedBalance = (project.total || 0) - sumOfPayments;
+            const calculatedBalance = calculateProjectBalance(project.total, sumOfPayments);
             calculatedBalances[project.id] = calculatedBalance;
             
             // Solo incluir proyectos con balance pendiente

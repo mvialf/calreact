@@ -43,6 +43,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { DollarSign, Edit, Trash2, GanttChartSquare, Search, Loader2, CreditCard } from 'lucide-react';
+import TablePagination from '@/components/table/table-pagination';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeSearchText } from '@/utils/search-utils';
@@ -79,6 +80,10 @@ export default function PaymentsPage() {
   const [paymentToEdit, setPaymentToEdit] = useState<EnrichedPayment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  // Estados para la paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25); // Tope de 25 filas por página
 
   const { data: payments = [], isLoading: isLoadingPayments, isError: isErrorPayments, error: errorPayments } = useQuery<Payment[], Error>({
     queryKey: ['payments'],
@@ -181,6 +186,30 @@ export default function PaymentsPage() {
   };
 
 
+  // Efecto para resetear a la primera página cuando cambian los filtros o los pagos
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterText, enrichedPayments]);
+  
+  // Manejar cambio de página
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    // Desplazarse al inicio de la tabla
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  // Manejar cambio de tamaño de página
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1); // Resetear a la primera página al cambiar el tamaño
+  };
+  
+  // Calcular pagos paginados
+  const paginatedPayments = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredPayments.slice(startIndex, startIndex + pageSize);
+  }, [filteredPayments, currentPage, pageSize]);
+
   const isLoading = isLoadingPayments || isLoadingProjects || isLoadingClients;
   const isMutating = deletePaymentMutation.isPending;
 
@@ -225,7 +254,7 @@ export default function PaymentsPage() {
                 />
             </div>
           </div>
-          <CardContent className="pt-6">
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -241,27 +270,29 @@ export default function PaymentsPage() {
                 {isLoading ? (
                   [...Array(5)].map((_, i) => <PaymentRowSkeleton key={i} />)
                 ) : filteredPayments.length > 0 ? (
-                  filteredPayments.map((payment) => (
+                  paginatedPayments.map((payment) => (
                     <TableRow key={payment.id} className={isMutating && paymentToDelete?.id === payment.id ? 'opacity-50' : ''}>
-                      <TableCell className="font-medium">
+                                            <TableCell className="font-medium">
                         <div>{payment.projectNumber}</div>
                         <div className="text-xs text-muted-foreground">{payment.clientName}</div>
                       </TableCell>
-                      <TableCell className="text-right items-center">{formatCurrency(payment.amount)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(payment.amount)}</TableCell>
                       <TableCell>{payment.date ? formatDate(payment.date, 'P', { locale: es }) : 'N/A'}</TableCell>
-                      <TableCell className="flex items-center ">
-                        {payment.paymentMethod === 'tarjeta de crédito' ? (
-                          <>
-                            <span>Tarjeta de Crédito</span>
-                            {payment.installments && (
-                              <Badge variant="accent" className="ml-1 whitespace-nowrap">
-                              {payment.installments}
-                              </Badge>
-                            )}
-                          </>
-                        ) : (
-                          payment.paymentMethod || 'N/A'
-                        )}
+                      <TableCell>
+                        <div className="flex items-center">
+                          {payment.paymentMethod === 'tarjeta de crédito' ? (
+                            <>
+                              <span>Tarjeta de Crédito</span>
+                              {payment.installments && (
+                                <Badge className="ml-1 whitespace-nowrap">
+                                  {payment.installments}
+                                </Badge>
+                              )}
+                            </>
+                          ) : (
+                            payment.paymentMethod || 'N/A'
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>{payment.paymentType || 'N/A'}</TableCell>
                       <TableCell className="text-right">
@@ -295,6 +326,22 @@ export default function PaymentsPage() {
                   </TableRow>
                 )}
               </TableBody>
+              {filteredPayments.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td colSpan={6} className="px-4 py-2">
+                      <TablePagination
+                        totalItems={filteredPayments.length}
+                        pageSize={pageSize}
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                        onPageSizeChange={handlePageSizeChange}
+                        className="mt-4"
+                      />
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </Table>
           </CardContent>
         </Card>

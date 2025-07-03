@@ -1,576 +1,435 @@
-
-// src/app/projects/page.tsx
 "use client";
-import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Import useRouter
-import { useQuery, useMutation, useQueryClient as useQueryClientHook } from '@tanstack/react-query';
-import type { ProjectType, ProjectStatus } from '@/types/project';
-import type { Client } from '@/types/client';
-import type { Payment, PaymentMethod } from '@/types/payment'; // Import Payment types
-import { getProjects, updateProject, deleteProject } from '@/services/projectService';
-import { getClients } from '@/services/clientService';
-import { addPayment, getAllPayments } from '@/services/paymentService'; // Import addPayment service
+
+import React, { useState, useMemo } from 'react';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { format as formatDate } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { formatCurrency, formatClientDisplay } from '@/utils/format-helpers';
-import { getPaymentPercentageBadgeVariant, getStatusBadgeVariant, PROJECT_STATUS_OPTIONS } from '@/lib/constants'; 
-import type { ProjectStatusConstant } from '@/lib/constants';
+import { toast } from 'sonner';
+import Link from 'next/link';
 
-import { SidebarTrigger } from '@/components/ui/sidebar';
+// Tipos
+import type { ProjectType, EnrichedProject } from '@/types/project';
+
+// Hooks
+import { useProjectsData } from '@/hooks/useProjectsData';
+
+// Servicios
+import { updateProject, deleteProject } from '@/services/projectService';
+import { addPayment, deletePayment, getPaymentsForProject } from '@/services/paymentService';
+
+// Componentes UI
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge'; 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { GanttChartSquare, DollarSign, FileText, SquarePen, Trash2, PlusCircle, Briefcase, Loader2, Search } from 'lucide-react';
-import PaymentModal from '@/components/payment-modal'; 
+import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import TablePagination from '@/components/table/table-pagination';
+import { PaymentDialog } from '@/components/payment-dialog';
 import AccountStatementDialog from '@/components/account-statement-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { normalizeSearchText } from '@/utils/search-utils';
-import { cn } from '@/lib/utils';
+import { ProjectClientDisplay } from '@/components/client-display';
+import type { PaymentMethod } from '@/types/payment';
 
-// Skeleton for table rows
-const ProjectRowSkeleton = () => (
-  <TableRow>
-    <TableCell className="w-10 text-center"><Checkbox disabled /></TableCell>
-    <TableCell><div className="h-5 w-32 bg-muted rounded animate-pulse"></div></TableCell>
-    <TableCell><div className="h-5 w-24 bg-muted rounded animate-pulse"></div></TableCell>
-    <TableCell className="text-right"><div className="h-5 w-20 bg-muted rounded animate-pulse"></div></TableCell>
-    <TableCell><Badge><div className="h-4 w-16 bg-muted/50 rounded animate-pulse"></div></Badge></TableCell>
-    <TableCell className="text-center"><div className="h-6 w-10 bg-muted rounded-full inline-block animate-pulse"></div></TableCell>
-    <TableCell className="text-right">
-      <div className="flex items-center justify-end gap-2">
-        <div className="h-5 w-20 bg-muted rounded animate-pulse"></div> {/* Amount */}
-        <div className="h-5 w-12 bg-muted rounded-full animate-pulse"></div> {/* Percentage Badge */}
-      </div>
-    </TableCell>
-    <TableCell className="text-right space-x-2">
-      <div className="h-8 w-8 bg-muted rounded-full inline-block animate-pulse"></div>
-    </TableCell>
-  </TableRow>
-);
+// Iconos
+import { MoreHorizontal, ArrowUpDown, ChevronDown, ChevronUp, PlusCircle, Search, Loader2, SquarePen, Trash2, DollarSign, FileText, Briefcase, Eye, EyeOff } from 'lucide-react';
 
-interface EnrichedProject extends ProjectType {
-  clientName?: string;
-  totalPayments: number;
-  totalPaymentPercentage: number;
-  collect?: boolean;
-}
+// Utils
+import { formatCurrency } from '@/utils/format-helpers';
+import { getPaymentPercentageBadgeVariant, getStatusBadgeVariant, PROJECT_STATUS_OPTIONS, type ProjectStatusConstant } from '@/lib/constants';
 
+// Definición del tipo para los campos ordenables
+type SortableField = keyof EnrichedProject;
 
-export default function ProjectsPage() {
-  const { toast } = useToast();
-  const queryClient = useQueryClientHook();
-  const router = useRouter(); 
+const ProjectsPage: React.FC = () => {
+  const queryClient = useQueryClient();
+  const { projects: enrichedProjects, isLoading, isError, error } = useProjectsData();
 
-  const [filterText, setFilterText] = useState('');
-  const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
-  const [projectToDelete, setProjectToDelete] = useState<ProjectType | null>(null);
-  const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
+  // Estados del componente
+  const [filter, setFilter] = useState('');
+  const [sortBy, setSortBy] = useState<SortableField>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [hideCompletedAndPaid, setHideCompletedAndPaid] = useState(false);
   
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [selectedProjectForPayment, setSelectedProjectForPayment] = useState<ProjectType | null>(null);
-
-  // Estado para manejar la apertura del modal de estado de cuenta
+  const [editingProject, setEditingProject] = useState<EnrichedProject | null>(null);
+  const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [projectForPayment, setProjectForPayment] = useState<EnrichedProject | null>(null);
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<EnrichedProject | null>(null);
   const [isAccountStatementOpen, setIsAccountStatementOpen] = useState(false);
-  const [selectedProjectForAccountStatement, setSelectedProjectForAccountStatement] = useState<ProjectType | null>(null);
+  const [selectedProjectForAccountStatement, setSelectedProjectForAccountStatement] = useState<EnrichedProject | null>(null);
 
-
-  const { data: projects = [], isLoading: isLoadingProjects, isError: isErrorProjects, error: errorProjects } = useQuery<ProjectType[], Error>({
-    queryKey: ['projects'],
-    queryFn: () => getProjects(),
-  });
-
-  const { data: clients = [], isLoading: isLoadingClients } = useQuery<Client[], Error>({
-    queryKey: ['clients'],
-    queryFn: getClients,
-  });
-
-  const { data: allPayments = [], isLoading: isLoadingAllPayments } = useQuery<Payment[], Error>({
-    queryKey: ['payments'], 
-    queryFn: getAllPayments,
-  });
-
-  const clientMap = useMemo(() => {
-    if (isLoadingClients || !clients) return new Map<string, string>();
-    return new Map(clients.map(client => [client.id, client.name]));
-  }, [clients, isLoadingClients]);
-
-  const enrichedProjects = useMemo((): EnrichedProject[] => {
-    if (isLoadingProjects || isLoadingClients || isLoadingAllPayments || !projects || !clients || !allPayments) {
-      return [];
-    }
-
-    return projects.map(project => {
-      const clientName = clientMap.get(project.clientId) || 'Cliente Desconocido';
-      
-      const sumOfPaymentsForProject = allPayments
-        .filter(p => p.projectId === project.id && !p.isAdjustment && typeof p.amount === 'number')
-        .reduce((acc, p) => acc + (p.amount || 0), 0);
-
-      const calculatedBalance = (project.total ?? 0) - sumOfPaymentsForProject;
-      
-      const projectTotalValue = project.total ?? 0;
-      let calculatedTotalPaymentPercentage = 0;
-
-      if (projectTotalValue > 0) {
-        calculatedTotalPaymentPercentage = (sumOfPaymentsForProject / projectTotalValue) * 100;
-      } else if (projectTotalValue === 0 && sumOfPaymentsForProject === 0) {
-        calculatedTotalPaymentPercentage = 100; 
-      } else if (projectTotalValue === 0 && sumOfPaymentsForProject > 0) {
-        calculatedTotalPaymentPercentage = 100; 
-      } else if (projectTotalValue === 0 && sumOfPaymentsForProject < 0) { // Should not happen with valid data
-        calculatedTotalPaymentPercentage = 0;
-      }
-      
-      return {
-        ...project,
-        clientName,
-        totalPayments: sumOfPaymentsForProject,
-        balance: calculatedBalance, 
-        totalPaymentPercentage: calculatedTotalPaymentPercentage,
-      };
-    });
-  }, [projects, clients, allPayments, clientMap, isLoadingProjects, isLoadingClients, isLoadingAllPayments]);
-
-
+  // --- MUTATIONS ---
   const updateProjectMutation = useMutation({
-    mutationFn: (variables: { projectId: string; projectData: Partial<Omit<ProjectType, 'id' | 'createdAt' | 'updatedAt'>> }) =>
-      updateProject(variables.projectId, variables.projectData),
-    onSuccess: (_, variables) => {
+    mutationFn: ({ id, data }: { id: string; data: Partial<ProjectType> }) => updateProject(id, data),
+    onSuccess: () => {
+      toast.success('Proyecto actualizado con éxito');
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] }); 
-      // Toast for status change is handled in handleStatusChange, toast for isPaid in handleToggleIsPaid
-      if (!variables.projectData.hasOwnProperty('isPaid') && !variables.projectData.hasOwnProperty('status')) {
-           toast({ title: "Proyecto Actualizado", description: `El proyecto ha sido actualizado.` });
-      }
+      setEditingProject(null);
     },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: `No se pudo actualizar el proyecto: ${err.message}`, variant: "destructive" });
-    },
+    onError: (err: Error) => toast.error(`Error al actualizar: ${err.message}`),
   });
 
   const deleteProjectMutation = useMutation({
-    mutationFn: deleteProject,
-    onSuccess: (_, projectId) => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] }); 
-      toast({ title: "Proyecto Eliminado", description: `"${projectToDelete?.projectNumber || 'El proyecto'}" ha sido eliminado.`, variant: "destructive" });
-      setSelectedRows(prev => {
-        const newSelected = {...prev};
-        delete newSelected[projectId];
-        return newSelected;
-      });
+    mutationFn: (id: string) => deleteProject(id),
+    onSuccess: (_, deletedId) => {
+      toast.success('Proyecto eliminado con éxito');
+      queryClient.invalidateQueries({ queryKey: ['projects', 'payments'] });
+      setSelectedRows(prev => prev.filter(id => id !== deletedId));
+      setDeleteDialogOpen(false);
       setProjectToDelete(null);
-      setIsDeleteProjectDialogOpen(false);
     },
-    onError: (err: Error) => {
-      toast({ title: "Error al Eliminar", description: `No se pudo eliminar el proyecto: ${err.message}`, variant: "destructive" });
-      setProjectToDelete(null);
-      setIsDeleteProjectDialogOpen(false);
-    },
+    onError: (err: Error) => toast.error(`Error al eliminar: ${err.message}`),
   });
 
   const addPaymentMutation = useMutation({
-    mutationFn: (paymentData: Omit<Payment, 'id' | 'updatedAt'>) => addPayment(paymentData),
-    onSuccess: (newPayment) => {
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] }); 
-      toast({ title: "Pago Registrado", description: `Pago de ${formatCurrency(newPayment.amount)} para el proyecto "${selectedProjectForPayment?.projectNumber}" registrado.` });
-      setIsPaymentModalOpen(false);
-      setSelectedProjectForPayment(null);
+    mutationFn: addPayment,
+    onSuccess: () => {
+      toast.success('Pago registrado con éxito');
+      queryClient.invalidateQueries({ queryKey: ['projects', 'payments'] });
+      setPaymentDialogOpen(false);
+      setProjectForPayment(null);
     },
-    onError: (err: Error) => {
-      toast({ title: "Error al Registrar Pago", description: err.message, variant: "destructive" });
-    }
+    onError: (err: Error) => toast.error(`Error al registrar el pago: ${err.message}`),
   });
 
-  const handleOpenPaymentModal = (project: ProjectType) => {
-    const projectForModal = enrichedProjects.find(ep => ep.id === project.id) || project;
-    setSelectedProjectForPayment(projectForModal);
-    setIsPaymentModalOpen(true);
+  // --- MANEJADORES DE EVENTOS ---
+  const handleSort = (field: SortableField) => {
+    const newSortOrder = sortBy === field && sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortBy(field);
+    setSortOrder(newSortOrder);
   };
 
-  // Función para abrir el diálogo de estado de cuenta
-  const handleOpenAccountStatement = (project: ProjectType) => {
-    const projectForDialog = enrichedProjects.find(ep => ep.id === project.id) || project;
-    setSelectedProjectForAccountStatement(projectForDialog);
-    setIsAccountStatementOpen(true);
+  const handleSelectRow = (id: string) => {
+    setSelectedRows(prev => prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]);
   };
 
-  const handleSavePayment = (formData: { amount: number; date: Date; paymentMethod: PaymentMethod }) => {
-    if (!selectedProjectForPayment) {
-      toast({ title: "Error", description: "No hay un proyecto seleccionado para el pago.", variant: "destructive" });
-      return;
+  const handleSelectAll = (isChecked: boolean) => {
+    setSelectedRows(isChecked ? paginatedProjects.map(p => p.id) : []);
+  };
+
+  const handleEdit = (project: EnrichedProject) => {
+    // Lógica para abrir modal de edición o navegar a página de edición
+    // Por ejemplo: router.push(`/projects/edit/${project.id}`);
+    toast.info(`Funcionalidad de editar para "${project.projectNumber}" pendiente de implementación.`);
+  };
+
+  const handleOpenPaymentDialog = (project: EnrichedProject) => {
+    setProjectForPayment(project);
+    setPaymentDialogOpen(true);
+  };
+
+    const handleConfirmPayment = (paymentData: { amount: number; date: Date; paymentMethod: PaymentMethod; installments?: number; isAdjustment: boolean }) => {
+    if (projectForPayment) {
+            addPaymentMutation.mutate({
+        ...paymentData,
+        projectId: projectForPayment.id,
+        createdAt: new Date(), // El servicio `addPayment` requiere este campo
+      });
     }
-
-    const paymentPayload: Omit<Payment, 'id' | 'updatedAt'> = {
-      projectId: selectedProjectForPayment.id,
-      amount: formData.amount,
-      date: formData.date,
-      paymentMethod: formData.paymentMethod,
-      paymentType: 'proyecto', // Tipo de pago por defecto
-      isAdjustment: false, // No es un ajuste por defecto
-      createdAt: new Date(), // Añadir createdAt como requiere la interfaz Payment
-    };
-    addPaymentMutation.mutate(paymentPayload);
   };
 
-
-  const handleDeleteProjectInitiate = (project: ProjectType) => {
+  const handleOpenDeleteDialog = (project: EnrichedProject) => {
     setProjectToDelete(project);
-    setIsDeleteProjectDialogOpen(true);
+    setDeleteDialogOpen(true);
   };
 
-  const confirmDeleteProject = () => {
+  const handleConfirmDelete = () => {
     if (projectToDelete) {
       deleteProjectMutation.mutate(projectToDelete.id);
     }
   };
 
-  const handleEditProject = (projectId: string) => {
-    router.push(`/projects/${projectId}/edit`);
+  const handleOpenAccountStatementDialog = (project: EnrichedProject) => {
+    setSelectedProjectForAccountStatement(project);
+    setIsAccountStatementOpen(true);
   };
 
-  const handleToggleCollect = async (projectId: string, newCollectState: boolean) => {
-    try {
-      await updateProjectMutation.mutateAsync({ projectId, projectData: { collect: newCollectState } });
-      toast({
-        title: "Estado de Cobro Actualizado",
-        description: `El proyecto ha sido marcado para ${newCollectState ? 'cobrar' : 'no cobrar'}.`,
-      });
-    } catch (error) {
-      // Error toast is handled by mutation's onError
-    }
-  };
-  
-  const handleStatusChange = (projectId: string, newStatus: ProjectStatusConstant) => {
-    updateProjectMutation.mutate(
-      { projectId, projectData: { status: newStatus } },
-      {
-        onSuccess: () => {
-          toast({
-            title: "Estado Actualizado",
-            description: `El estado del proyecto ha sido cambiado a "${newStatus}".`,
-          });
-        },
-        // onError is handled by the default mutation onError
-      }
-    );
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ projectId, status }: { projectId: string; status: ProjectStatusConstant }) => 
+      updateProject(projectId, { status }),
+    onSuccess: () => {
+      toast.success('Estado del proyecto actualizado correctamente.');
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+    onError: (error) => {
+      toast.error(`Error al actualizar el estado: ${error.message}`);
+    },
+  });
+
+  const handleStatusChange = (projectId: string, status: ProjectStatusConstant) => {
+    updateStatusMutation.mutate({ projectId, status });
   };
 
-
+  // --- DATOS FILTRADOS Y ORDENADOS ---
   const filteredProjects = useMemo(() => {
-    const searchTerm = normalizeSearchText(filterText);
-    return enrichedProjects.filter(project => {
-      const projectNumber = normalizeSearchText(project.projectNumber);
-      const clientName = project.clientName ? normalizeSearchText(project.clientName) : '';
-      const glosa = project.glosa ? normalizeSearchText(project.glosa) : '';
-      const description = project.description ? normalizeSearchText(project.description) : '';
-      
-      return projectNumber.includes(searchTerm) ||
-             clientName.includes(searchTerm) ||
-             glosa.includes(searchTerm) ||
-             description.includes(searchTerm);
-    });
-  }, [enrichedProjects, filterText]);
+    let projects = enrichedProjects || [];
 
-  const handleSelectAllRows = (checked: boolean) => {
-    const newSelectedRows: Record<string, boolean> = {};
-    if (checked) {
-      filteredProjects.forEach(project => newSelectedRows[project.id] = true);
+    if (hideCompletedAndPaid) {
+      // Oculta proyectos que están completados Y cuyo saldo es 0 o menor (pagados)
+     }
+
+    if (filter) {
+      const lowercasedFilter = filter.toLowerCase();
+      projects = projects.filter(p =>
+        p.projectNumber.toLowerCase().includes(lowercasedFilter) ||
+        (p.clientName || '').toLowerCase().includes(lowercasedFilter) ||
+        (p.glosa || '').toLowerCase().includes(lowercasedFilter)
+      );
     }
-    setSelectedRows(newSelectedRows);
+    return projects;
+  }, [enrichedProjects, filter, hideCompletedAndPaid]);
+
+  const sortedProjects = useMemo(() => {
+    return [...filteredProjects].sort((a, b) => {
+      const aValue = a[sortBy];
+      const bValue = b[sortBy];
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      let comparison = 0;
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue);
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        comparison = aValue - bValue;
+      } else if (aValue instanceof Date && bValue instanceof Date) {
+        comparison = aValue.getTime() - bValue.getTime();
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredProjects, sortBy, sortOrder]);
+
+  const paginatedProjects = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedProjects.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedProjects, currentPage, itemsPerPage]);
+
+    const totalPages = Math.max(1, Math.ceil(sortedProjects.length / itemsPerPage));
+
+  const renderSortIcon = (field: SortableField) => {
+    if (sortBy === field) {
+      return sortOrder === 'asc' ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />;
+    }
+    return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
   };
 
-  const handleSelectRow = (projectId: string, checked: boolean) => {
-    setSelectedRows(prev => ({ ...prev, [projectId]: checked }));
-  };
-
-  const isAllSelected = filteredProjects.length > 0 && filteredProjects.every(p => selectedRows[p.id]);
-  const isIndeterminate = Object.values(selectedRows).some(Boolean) && !isAllSelected;
-
-
-  if (isErrorProjects) {
-    return (
-      <div className="flex flex-col h-full p-4 md:p-6 lg:p-8 items-center justify-center text-destructive">
-        <h1 className="text-2xl font-bold mb-2">Error al cargar proyectos</h1>
-        <p>{errorProjects?.message || "Ha ocurrido un error desconocido."}</p>
-        <Button onClick={() => queryClient.refetchQueries({ queryKey: ['projects'] })} className="mt-4">
-          Intentar de Nuevo
-        </Button>
-      </div>
-    );
-  }
-
-  const isLoading = isLoadingProjects || isLoadingClients || isLoadingAllPayments;
-  const isMutating = updateProjectMutation.isPending || deleteProjectMutation.isPending || addPaymentMutation.isPending;
-
+  // --- RENDERIZADO ---
+  if (isError && error) return <div className="text-red-500 p-4">Error al cargar proyectos: {error.message}</div>;
 
   return (
-    <div className="flex flex-col h-full p-4 md:p-6 lg:p-8">
-      <header className="flex items-center justify-between gap-4 mb-6 md:mb-8">
-        <div className="flex items-center gap-4">
-          <SidebarTrigger className="md:hidden" />
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-primary">Gestión de Proyectos</h1>
-            <p className="text-muted-foreground">Administra tus proyectos y su información.</p>
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Gestión de Proyectos</h1>
+        <Link href="/projects/new">
+          <Button><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Proyecto</Button>
+        </Link>
+      </div>
+      
+      {/* Tabla de Proyectos */}
+      <Card className="mx-6">
+        {/* Controles de Filtro y Acciones */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por presupuesto, cliente o glosa..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="pl-8 w-96"
+            />
+          </div>
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" onClick={() => setHideCompletedAndPaid(!hideCompletedAndPaid)} title={hideCompletedAndPaid ? 'Mostrar proyectos completados y pagados' : 'Ocultar proyectos completados y pagados'}>
+              {hideCompletedAndPaid ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <span className="sr-only">
+                {hideCompletedAndPaid ? 'Mostrar proyectos completados y pagados' : 'Ocultar proyectos completados y pagados'}
+              </span>
+            </Button>
           </div>
         </div>
-        <Button asChild disabled={isLoading}>
-          <Link href="/projects/new">
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Nuevo Proyecto
-          </Link>
-        </Button>
-      </header>
-      <main className="flex-grow">
-        <Card className="shadow-lg">
-          <div className="flex items-center justify-between p-4 border-b">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Filtrar por Nº proyecto, cliente, glosa..."
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                className="pl-8"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-          <CardContent className="pt-6">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10 text-center">
-                     <Checkbox
-                        checked={isAllSelected}
-                        onCheckedChange={(checked) => handleSelectAllRows(Boolean(checked))}
-                        aria-label="Seleccionar todas las filas"
-                        data-state={isIndeterminate ? "indeterminate" : (isAllSelected ? "checked" : "unchecked")}
-                        disabled={isLoading || filteredProjects.length === 0}
-                     />
-                  </TableHead>
-                  <TableHead>Proyecto</TableHead>
-                  <TableHead>F. Inicio</TableHead>
-                  <TableHead className="text-right">V. Total</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-center">Cobrar</TableHead>
-                  <TableHead className="text-right">Abonos</TableHead>
-                  <TableHead className="text-right w-[100px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  [...Array(5)].map((_, i) => <ProjectRowSkeleton key={i} />)
-                ) : filteredProjects.length > 0 ? (
-                  filteredProjects.map((project) => {
-                    const clientDisplay = formatClientDisplay({
-                      clientName: project.clientName,
-                      glosa: project.glosa
-                    });
-                    const isRowUpdating = updateProjectMutation.isPending && updateProjectMutation.variables?.projectId === project.id;
-                    const isRowDeleting = deleteProjectMutation.isPending && projectToDelete?.id === project.id;
-                    const isCurrentRowMutating = isRowUpdating || isRowDeleting || (addPaymentMutation.isPending && selectedProjectForPayment?.id === project.id);
-                    
-                    return (
-                      <TableRow
-                        key={project.id}
-                        className={isCurrentRowMutating ? 'opacity-50' : ''}
-                        data-state={selectedRows[project.id] ? 'selected' : undefined}
-                      >
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={selectedRows[project.id] || false}
-                            onCheckedChange={(checked) => handleSelectRow(project.id, Boolean(checked))}
-                            aria-label={`Seleccionar proyecto ${project.projectNumber}`}
-                            disabled={isMutating}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <div>{project.projectNumber}</div>
-                          <div className="text-xs text-muted-foreground">{clientDisplay}</div>
-                        </TableCell>
-                        <TableCell>{project.date ? formatDate(project.date, 'P', { locale: es }) : 'N/A'}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(project.total)}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={project.status}
-                            onValueChange={(newStatus) => handleStatusChange(project.id, newStatus as ProjectStatusConstant)}
-                            disabled={isCurrentRowMutating}
-                          >
-                            <SelectTrigger
-                              className={cn(
-                                "h-auto p-0 border-0 bg-transparent focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 min-w-[120px] [&_svg]:size-3.5",
-                                // El siguiente estilo es para cuando el select está abierto
-                                "data-[state=open]:ring-1 data-[state=open]:ring-ring data-[state=open]:ring-offset-1"
-                              )}
-                              aria-label={`Estado: ${project.status}. Cambiar estado.`}
-                            >
-                              <Badge variant={getStatusBadgeVariant(project.status)} className="pointer-events-none px-4 align-center justify-center">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={selectedRows.length === paginatedProjects.length && paginatedProjects.length > 0}
+                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                  />
+                </TableHead>
+                <TableHead className="cursor-pointer" onClick={() => handleSort('projectNumber')}><div className="flex items-center">Proyecto {renderSortIcon('projectNumber')}</div></TableHead>
+                <TableHead className="cursor-pointer" onClick={() => handleSort('createdAt')}><div className="flex items-center">Fecha Creación {renderSortIcon('createdAt')}</div></TableHead>
+                <TableHead className="cursor-pointer" onClick={() => handleSort('total')}><div className="flex items-center justify-end">Monto Total {renderSortIcon('total')}</div></TableHead>
+
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Pagos</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: itemsPerPage }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-2">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-3 w-32" />
+                      </div>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : paginatedProjects.length > 0 ? (
+                paginatedProjects.map((project) => (
+                  <TableRow key={project.id} data-state={selectedRows.includes(project.id) ? 'selected' : undefined}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedRows.includes(project.id)}
+                        onCheckedChange={() => handleSelectRow(project.id)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <ProjectClientDisplay project={project} />
+                    </TableCell>
+                    <TableCell>{project.createdAt ? formatDate(new Date(project.createdAt), 'dd/MM/yyyy', { locale: es }) : 'N/A'}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(project.total ?? 0)}</TableCell>
+
+                                        <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                           <Button variant="ghost" className="p-0 h-auto font-normal" disabled={updateStatusMutation.isPending}>
+                              <Badge variant={getStatusBadgeVariant(project.status)} className="cursor-pointer">
+                                {updateStatusMutation.isPending && updateStatusMutation.variables?.projectId === project.id 
+                                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                                  : null
+                                }
                                 {project.status}
                               </Badge>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {PROJECT_STATUS_OPTIONS.map((statusOption) => (
-                                <SelectItem key={statusOption} value={statusOption}>
-                                  <Badge variant={getStatusBadgeVariant(statusOption)} className="mr-2 border !h-3 !w-3 !p-0" />
-                                  {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Switch
-                            checked={project.collect || false}
-                            onCheckedChange={(newCheckedState) => handleToggleCollect(project.id, newCheckedState)}
-                            disabled={(isRowUpdating && updateProjectMutation.variables?.projectData.hasOwnProperty('collect')) || project.isPaid === true}
-                            aria-label={project.collect ? "Proyecto marcado para cobrar" : "Marcar proyecto para cobrar"}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <span>{formatCurrency(project.totalPayments)}</span>
-                            <Badge variant={getPaymentPercentageBadgeVariant(project.totalPaymentPercentage)}>
-                              {project.totalPaymentPercentage.toFixed(0)}%
+                           </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuLabel>Cambiar Estado</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {PROJECT_STATUS_OPTIONS.map(status => (
+                            <DropdownMenuItem 
+                              key={status} 
+                              onSelect={() => handleStatusChange(project.id, status)}
+                              disabled={project.status === status}
+                            >
+                              {status}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                    <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                            <span>{formatCurrency(project.totalPayments ?? 0)}</span>
+                            <Badge variant={getPaymentPercentageBadgeVariant(project.totalPaymentPercentage ?? 0)}>
+                                {(project.totalPaymentPercentage ?? 0).toFixed(0)}%
                             </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="default" disabled={isCurrentRowMutating} aria-label="Más acciones">
-                                {isCurrentRowMutating && (isRowDeleting || (isRowUpdating && !updateProjectMutation.variables?.projectData.hasOwnProperty('isPaid') && !updateProjectMutation.variables?.projectData.hasOwnProperty('status'))) ? <Loader2 className="h-4 w-4 animate-spin" /> : <GanttChartSquare className="h-6 w-6" />}
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onSelect={() => handleOpenPaymentModal(project)} disabled={isMutating}>
-                                <DollarSign className="mr-2 h-4 w-4" />
-                                <span>Registrar Pago</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => handleOpenAccountStatement(project)} disabled={isMutating}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                <span>Estado de cuenta</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={() => handleEditProject(project.id)} disabled={isMutating}>
-                                <SquarePen className="mr-2 h-4 w-4" />
-                                <span>Editar proyecto</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => handleDeleteProjectInitiate(project)} disabled={isMutating} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Eliminar proyecto</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                      <Briefcase className="mx-auto h-12 w-12 mb-4" />
-                      <p className="text-lg font-semibold">No hay proyectos registrados.</p>
-                      <p className="text-sm">Empieza añadiendo tu primer proyecto.</p>
+                        </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            {(addPaymentMutation.isPending && projectForPayment?.id === project.id) || (deleteProjectMutation.isPending && projectToDelete?.id === project.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => handleEdit(project)}><SquarePen className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleOpenPaymentDialog(project)}><DollarSign className="mr-2 h-4 w-4" /> Registrar Pago</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleOpenAccountStatementDialog(project)}><FileText className="mr-2 h-4 w-4" /> Estado de Cuenta</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={() => handleOpenDeleteDialog(project)} className="text-red-500 focus:text-red-500 focus:bg-red-100"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </main>
-      
-      <PaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => {
-          setIsPaymentModalOpen(false);
-          setSelectedProjectForPayment(null);
-        }}
-        onSave={handleSavePayment}
-        project={selectedProjectForPayment}
-        clientDisplay={
-          selectedProjectForPayment 
-            ? `${selectedProjectForPayment.clientName || 'Cliente no encontrado'}${selectedProjectForPayment.glosa?.trim() ? ` - ${selectedProjectForPayment.glosa}` : ''}`
-            : 'Cliente no disponible'
-        }
-      />
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center">
+                    <Briefcase className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
+                    No se encontraron proyectos que coincidan con los filtros actuales.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      <AccountStatementDialog
-        isOpen={isAccountStatementOpen}
-        onClose={() => {
-          setIsAccountStatementOpen(false);
-          setSelectedProjectForAccountStatement(null);
-        }}
-        project={selectedProjectForAccountStatement}
-        clientName={
-          selectedProjectForAccountStatement 
-            ? `${selectedProjectForAccountStatement.clientName || 'Cliente no encontrado'}${selectedProjectForAccountStatement.glosa?.trim() ? ` - ${selectedProjectForAccountStatement.glosa}` : ''}`
-            : 'Cliente no disponible'
-        }
-      />
-
-      {projectToDelete && (
-        <AlertDialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción no se puede deshacer. Esto eliminará permanentemente el proyecto "{projectToDelete.projectNumber}"
-                y todos sus pagos y registros de postventa asociados.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => { setProjectToDelete(null); setIsDeleteProjectDialogOpen(false); }}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDeleteProject}
-                disabled={deleteProjectMutation.isPending}
-                className="bg-destructive hover:bg-destructive/90"
-              >
-                {deleteProjectMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Sí, eliminar proyecto
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <TablePagination
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          pageSize={itemsPerPage}
+          onPageSizeChange={setItemsPerPage}
+          totalItems={sortedProjects.length}
+        />
       )}
+
+      {/* Diálogos */}
+      {isPaymentDialogOpen && projectForPayment && (
+        <PaymentDialog
+          isOpen={isPaymentDialogOpen}
+          onClose={() => setPaymentDialogOpen(false)}
+          onConfirm={handleConfirmPayment}
+          project={projectForPayment}
+        />
+      )}
+
+      {isAccountStatementOpen && selectedProjectForAccountStatement && (
+        <AccountStatementDialog
+          isOpen={isAccountStatementOpen}
+          onClose={() => {
+            setIsAccountStatementOpen(false);
+            setSelectedProjectForAccountStatement(null);
+          }}
+          project={selectedProjectForAccountStatement}
+          clientName={
+            `${selectedProjectForAccountStatement.clientName || 'Cliente no encontrado'}${selectedProjectForAccountStatement.glosa?.trim() ? ` - ${selectedProjectForAccountStatement.glosa}` : ''}`
+          }
+        />
+      )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el proyecto "{projectToDelete?.projectNumber}" y todos sus pagos y registros asociados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProjectToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteProjectMutation.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deleteProjectMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Sí, eliminar proyecto
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
-}
+};
 
+export default ProjectsPage;

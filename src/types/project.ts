@@ -72,6 +72,13 @@ export interface ProjectDocument
 }
 
 // Interface for data used when importing projects
+export interface EnrichedProject extends ProjectType {
+  totalPayments: number;
+  totalPaymentPercentage: number;
+  balance: number;
+}
+
+// Interface for data used when importing projects
 export interface ProjectImportData
   extends Partial<Omit<ProjectType, 'total' | 'balance' | 'updatedAt' | 'date' | 'createdAt'>> {
   id?: string; // If provided, this ID will be used for the document.

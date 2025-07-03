@@ -16,10 +16,21 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import type { ProjectType, ProjectDocument, ProjectImportData, FormattedAddress } from '@/types/project';
-import { deletePaymentsForProject } from './paymentService';
+import { deletePaymentsForProject, getPaymentsForProject } from './paymentService';
 import { deleteAfterSalesForProject } from './afterSalesService';
+import { runTransaction } from 'firebase/firestore';
 
 const PROJECTS_COLLECTION = 'projects';
+
+/**
+ * Calcula el balance de un proyecto basado en el total y los pagos realizados
+ * @param total - Total del proyecto
+ * @param payments - Suma de pagos realizados
+ * @returns El balance pendiente
+ */
+export const calculateProjectBalance = (total: number = 0, payments: number = 0): number => {
+  return Math.max(0, (total || 0) - (payments || 0));
+};
 
 const projectFromDoc = (docSnapshot: any): ProjectType => {
   const data = docSnapshot.data() as ProjectDocument;
@@ -236,10 +247,14 @@ export const updateProject = async (projectId: string, projectData: Partial<Omit
     dataToUpdate.total = subtotal * (1 + taxRate / 100);
     // Adjust balance based on the new total and existing payments
     if (currentData) {
-       const paymentsMade = (currentData.total || 0) - (currentData.balance || 0);
-       dataToUpdate.balance = dataToUpdate.total - paymentsMade;
+      const payments = await getPaymentsForProject(projectId);
+      const sumOfPayments = payments
+        .filter(p => !p.isAdjustment && typeof p.amount === 'number')
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+      
+      dataToUpdate.balance = calculateProjectBalance(dataToUpdate.total, sumOfPayments);
     } else {
-       dataToUpdate.balance = dataToUpdate.total; // Fallback if currentData is somehow not available
+      dataToUpdate.balance = dataToUpdate.total; // Fallback si no hay datos actuales
     }
   }
 
@@ -291,6 +306,51 @@ export const updateProject = async (projectId: string, projectData: Partial<Omit
   }
   // If no fields were provided in projectData (empty object), this will essentially just update 'updatedAt'.
   // If projectData only contained 'isPaid', fieldCountToUpdate would be 1, and the update would proceed.
+};
+
+/**
+ * Adds a payment to a project and updates the project's balance within a transaction.
+ * @param projectId The ID of the project to add the payment to.
+ * @param amount The amount of the payment.
+ * @param date The date of the payment.
+ * @param isAdjustment Whether the payment is an adjustment.
+ * @returns A promise that resolves when the operation is complete.
+ */
+export const addPaymentToProject = async (projectId: string, amount: number, date: Date, isAdjustment: boolean): Promise<void> => {
+  // TODO: This implementation is not atomic and can lead to race conditions.
+  // A better approach would be to use a Cloud Function for a transaction that can perform queries,
+  // or to denormalize a 'totalPayments' field on the project document and update it atomically.
+
+  const projectRef = doc(db, PROJECTS_COLLECTION, projectId);
+  const paymentsCollectionRef = collection(db, 'payments');
+
+  // 1. Get current project data
+  const projectDoc = await getDoc(projectRef);
+  if (!projectDoc.exists()) {
+    throw new Error("Project not found!");
+  }
+  const projectData = projectDoc.data() as ProjectType;
+
+  // 2. Add the new payment
+  await addDoc(paymentsCollectionRef, {
+    projectId,
+    amount,
+    date: Timestamp.fromDate(date),
+    method: 'transferencia', // Or another default/provided method
+    isAdjustment,
+    createdAt: serverTimestamp(),
+  });
+
+  // 3. Recalculate and update the project's balance
+  const payments = await getPaymentsForProject(projectId);
+  const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const newBalance = calculateProjectBalance(projectData.total || 0, totalPayments);
+
+  await updateDoc(projectRef, {
+    balance: newBalance,
+    isPaid: newBalance <= 0,
+    updatedAt: serverTimestamp(),
+  });
 };
 
 export const deleteProject = async (projectId: string): Promise<void> => {
