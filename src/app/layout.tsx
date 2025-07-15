@@ -1,4 +1,5 @@
 // src/app/layout.tsx
+
 'use client';
 
 import type { Metadata } from 'next';
@@ -15,24 +16,16 @@ import {
   LayoutDashboard,
   Wrench,
   Home,
-} from 'lucide-react'; 
+} from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ThemeProvider } from 'next-themes';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { HeaderNav } from '@/components/ui/headernav';
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarInset,
-} from '@/components/ui/sidebar';
+import { Sidebar } from '@/components/ui/sidebar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import Script from 'next/script';
+import { cn } from '@/lib/utils';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -52,6 +45,50 @@ export const metadata: Metadata = {
 };
 */
 
+const navItems = [
+  { 
+    href: '/dashboard', 
+    icon: LayoutDashboard, 
+    label: 'Panel Principal', 
+    altPaths: ['/'] 
+  },
+  { 
+    href: '/projects', 
+    icon: FolderOpen, 
+    label: 'Proyectos' 
+  },
+  { 
+    href: '/calendar', 
+    icon: CalendarDays, 
+    label: 'Calendario' 
+  },
+  { 
+    href: '/aftersales', 
+    icon: Wrench, 
+    label: 'Postventas' 
+  },
+  { 
+    href: '/visits', 
+    icon: Home, 
+    label: 'Visitas' 
+  },
+  { 
+    href: '/payments', 
+    icon: DollarSign, 
+    label: 'Pagos' 
+  },
+  { 
+    href: '/clients', 
+    icon: Users, 
+    label: 'Clientes' 
+  },
+  { 
+    href: '/settings', 
+    icon: Settings, 
+    label: 'Configuración' 
+  },
+];
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -67,14 +104,14 @@ export default function RootLayout({
 
   if (!isMounted) {
     return (
-      <html lang='es' suppressHydrationWarning>
+      <html lang="es" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
           suppressHydrationWarning
         >
-          <div className='flex flex-col h-screen items-center justify-center bg-background text-foreground'>
-            <Loader2 className='h-12 w-12 animate-spin text-primary' />
-            <p className='mt-4 text-muted-foreground'>Cargando aplicación...</p>
+          <div className="flex flex-col h-screen items-center justify-center bg-background text-foreground">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="mt-4 text-muted-foreground">Cargando aplicación...</p>
           </div>
         </body>
       </html>
@@ -82,141 +119,87 @@ export default function RootLayout({
   }
 
   return (
-    <html lang='es' suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
         <QueryClientProvider client={queryClient}>
           <ThemeProvider
-            attribute='class'
-            defaultTheme='system'
+            attribute="class"
+            defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
             <HeaderNav />
-            <SidebarProvider>
-              <Sidebar collapsible='icon' className='pt-16'>
-                <SidebarHeader className='p-4'>
-                  <Link href='/' className='flex items-center gap-2' title='CalReact Home'>
-                    <CalendarDays className='h-7 w-7 text-primary flex-shrink-0' />
-                    <h2 className='text-2xl font-bold text-primary group-data-[collapsible=icon]:hidden'>
-                      CalReact
-                    </h2>
-                  </Link>
-                </SidebarHeader>
-                <SidebarContent>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/dashboard' || pathname === '/'}
-                        tooltip={{ children: 'Dashboard', side: 'right' }}
-                      >
-                        <Link href='/dashboard'>
-                          <LayoutDashboard />
-                          <span>Panel Principal</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/projects' || pathname?.startsWith('/projects/')}
-                        tooltip={{ children: 'Proyectos', side: 'right' }}
-                      >
-                        <Link href='/projects'>
-                          <FolderOpen />
-                          <span>Proyectos</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/calendar'}
-                        tooltip={{ children: 'Calendario', side: 'right' }}
-                      >
-                        <Link href='/calendar'>
-                          <CalendarDays />
-                          <span>Calendario</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={
-                          pathname === '/aftersales' || pathname?.startsWith('/aftersales/')
-                        }
-                        tooltip={{ children: 'Postventas', side: 'right' }}
-                      >
-                        <Link href='/aftersales'>
-                          <Wrench />
-                          <span>Postventas</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/visits' || pathname?.startsWith('/visits/')}
-                        tooltip={{ children: 'Visitas', side: 'right' }}
-                      >
-                        <Link href='/visits'>
-                          <Home />
-                          <span>Visitas</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/payments'}
-                        tooltip={{ children: 'Pagos', side: 'right' }}
-                      >
-                        <Link href='/payments'>
-                          <DollarSign />
-                          <span>Pagos</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/clients'}
-                        tooltip={{ children: 'Clientes', side: 'right' }}
-                      >
-                        <Link href='/clients'>
-                          <Users />
-                          <span>Clientes</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/settings'}
-                        tooltip={{ children: 'Configuración', side: 'right' }}
-                      >
-                        <Link href='/settings'>
-                          <Settings />
-                          <span>Configuración</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                </SidebarContent>
-                <SidebarFooter className='p-4 mt-auto'>
-                  <p className='text-xs text-muted-foreground group-data-[collapsible=icon]:hidden'>
-                    © 2024 CalReact App
-                  </p>
-                </SidebarFooter>
+            <div className="flex h-screen">
+              <Sidebar>
+                <div className="flex flex-col h-full">
+                  <div className="p-4">
+                    <Link 
+                      href="/" 
+                      className="flex items-center gap-2" 
+                      title="CalReact Home"
+                    >
+                      <CalendarDays className="h-7 w-7 text-primary flex-shrink-0" />
+                      <h2 className="text-2xl font-bold text-primary">
+                        CalReact
+                      </h2>
+                    </Link>
+                  </div>
+                  
+                  <nav className="flex-1 px-4">
+                    <ul className="space-y-2">
+                      {navItems.map((item) => {
+                        const isActive =
+                          pathname === item.href ||
+                          (item.href !== '/' && pathname?.startsWith(item.href)) ||
+                          (item.altPaths && item.altPaths.includes(pathname));
+                        
+                        return (
+                          <li key={item.href}>
+                            <Link
+                              href={item.href}
+                              className={cn(
+                                'flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
+                                isActive && 'bg-accent text-accent-foreground'
+                              )}
+                            >
+                              <item.icon className="h-5 w-5" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </nav>
+                  
+                  <div className="p-4 mt-auto">
+                    <p className="text-xs text-muted-foreground">
+                      © 2025 CalReact App
+                    </p>
+                  </div>
+                </div>
               </Sidebar>
-
-              <SidebarInset className='pt-16'>{children}</SidebarInset>
-            </SidebarProvider>
+              
+              <main className="flex-1 lg:pl-64">
+                <div className="p-4 sm:p-6 lg:p-8 h-full overflow-y-auto lg:mt-16">
+                  {children}
+                </div>
+              </main>
+            </div>
             <Toaster />
+            <Script
+              src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMaps`}
+              strategy="beforeInteractive"
+            />
+            <Script id="google-maps-init">
+              {`
+                window.initGoogleMaps = function() {
+                  window.googleMapsLoaded = true;
+                };
+              `}
+            </Script>
           </ThemeProvider>
         </QueryClientProvider>
       </body>

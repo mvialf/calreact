@@ -17,7 +17,7 @@ import { db } from '@/lib/firebase/client';
 import { getAfterSalesForProject, deleteAfterSales } from '@/services/afterSalesService';
 
 // Componentes de UI
-import { SidebarTrigger } from '@/components/ui/sidebar';
+
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Table,
@@ -175,7 +175,7 @@ export default function AfterSalesPage() {
     <div className="flex flex-col h-full p-4 md:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <SidebarTrigger />
+          
           <h2 className="text-3xl font-bold tracking-tight">Postventas</h2>
         </div>
         <Button onClick={() => router.push('/aftersales/new')}>

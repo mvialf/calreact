@@ -2,7 +2,7 @@
 // src/app/settings/page.tsx
 "use client";
 
-import { SidebarTrigger } from '@/components/ui/sidebar';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,8 +20,10 @@ import {
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { addClient, type ClientImportData } from '@/services/clientService';
-import { addProject, type ProjectImportData } from '@/services/projectService';
-import { addPayment, type PaymentImportData as PaymentImportDataType } from '@/services/paymentService';
+import { addProject } from '@/services/projectService';
+import { addPayment } from '@/services/paymentService';
+import type { ProjectImportData } from '@/types/project';
+import type { PaymentImportData as PaymentImportDataType } from '@/types/payment';
 import { POSSIBLE_PAYMENT_METHODS, POSSIBLE_PAYMENT_TYPES } from '@/types/payment';
 import type { ProjectStatus } from '@/types/project';
 import { Loader2, HelpCircle } from 'lucide-react';
@@ -516,7 +518,7 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col h-full p-4 md:p-6 lg:p-8">
       <header className="flex items-center gap-4 mb-6 md:mb-8">
-        <SidebarTrigger className="md:hidden" />
+        
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-primary">Configuración</h1>
           <p className="text-muted-foreground">Administra tus preferencias y datos de la aplicación.</p>

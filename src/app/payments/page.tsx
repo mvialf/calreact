@@ -14,7 +14,7 @@ import { getClients } from '@/services/clientService';
 import { format as formatDate } from '@/lib/calendar-utils';
 import { es } from 'date-fns/locale';
 
-import { SidebarTrigger } from '@/components/ui/sidebar';
+
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Table,
@@ -226,10 +226,10 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full p-4 md:p-6 lg:p-8">
+    <div className="flex flex-col bg-background h-full p-4 md:p-6 lg:p-8">
       <header className="flex items-center justify-between gap-4 mb-6 md:mb-8">
         <div className="flex items-center gap-4">
-          <SidebarTrigger className="md:hidden" />
+
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-primary">Gestión de Pagos</h1>
             <p className="text-muted-foreground">Consulta y administra los pagos registrados.</p>

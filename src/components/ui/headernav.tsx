@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils'; // Asumo que tienes esta utilidad para las clases
+import { ThemeSwitcher } from './theme-switcher';
 
 interface HeaderNavProps extends React.HTMLAttributes<HTMLElement> {}
 
@@ -11,7 +12,7 @@ export function HeaderNav({ className, ...props }: HeaderNavProps) {
   return (
     <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-40 flex items-center px-6 bg-background border-b', // z-40 para estar sobre el contenido pero debajo de modales (z-50) si los hubiera
+        'fixed top-0 left-0 right-0 z-40 flex items-center px-6 bg-card border-b', // z-40 para estar sobre el contenido pero debajo de modales (z-50) si los hubiera
         headerHeightClass,
         className
       )}
@@ -22,7 +23,7 @@ export function HeaderNav({ className, ...props }: HeaderNavProps) {
       </div>
       {/* Aquí puedes añadir más elementos como un menú de usuario, notificaciones, etc. */}
       <div className="ml-auto">
-        {/* Ejemplo: <UserNav /> */}
+        <ThemeSwitcher />
       </div>
     </header>
   );

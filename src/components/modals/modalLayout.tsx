@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-export interface ModalEventLayoutProps {
+export interface ModalLayoutProps {
   /**
    * Indica si la modal está abierta o cerrada
    */
@@ -56,7 +56,7 @@ export interface ModalEventLayoutProps {
  * Proporciona una estructura consistente con cabecera, cuerpo scrollable y pie con botones de acción.
  * Implementa Dialog de shadcn/ui para el comportamiento modal completo.
  */
-export function ModalEventLayout({
+export function ModalLayout({
   isOpen,
   title,
   children,
@@ -66,7 +66,7 @@ export function ModalEventLayout({
   submitButtonText = "Crear",
   className,
   disabled = false,
-}: ModalEventLayoutProps) {
+}: ModalLayoutProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn("p-0 gap-0 sm:max-w-md md:max-w-lg lg:max-w-xl", className)}>

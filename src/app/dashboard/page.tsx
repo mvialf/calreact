@@ -18,7 +18,7 @@ import {
 import DashboardProjectItem from '@/components/dashboard/dashboard-project-item';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+
 import { getClients } from '@/services/clientService';
 import { getProjects } from '@/services/projectService';
 import { getAllPayments } from '@/services/paymentService';
@@ -302,16 +302,12 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground p-0 sm:p-4">
-      <header className="p-4 text-center sm:text-left flex items-center gap-4">
-        <SidebarTrigger className="md:hidden" /> {/* Para control móvil, se oculta en desktop */}
-        <div>
-          <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
-          <p className="text-muted-foreground">Información general del sistema</p>
-        </div>
+    <div className="container mx-auto px-4 pb-2 bg-background">
+      <header className="text-center sm:text-left flex items-center gap-4">
+        <h1 className="text-3xl font-bold text-primary pb-4">Dashboard</h1>
       </header>
       
-      <main className="flex-grow overflow-auto p-4">
+      <main className="flex-grow overflow-auto">
         {data.isLoading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />

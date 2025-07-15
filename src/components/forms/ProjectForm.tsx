@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
 import { format as formatDateFns, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatDateForInput } from '@/utils/date-helpers';
 
 // Tipos y constantes locales
 type ProjectStatus =
@@ -52,7 +53,7 @@ async function fetchClients(): Promise<LocalClient[]> {
 
 // Componentes UI
 import { MoneyInput } from '@/components/ui/money-input';
-import { TaxRateInput } from '@/components/ui/tax-rate-input';
+// Eliminada la importación de TaxRateInput ya que usaremos Input
 import { AddressInput } from '@/components/ui/addressInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,20 +68,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, Check, ChevronsUpDown, Loader2, PlusCircle } from 'lucide-react';
+import { CalendarIcon, Loader2, PlusCircle } from 'lucide-react';
 import ClientModal from '@/components/client-modal';
 import { cn } from '@/lib/utils';
-import { commandFilter } from '@/utils/search-utils';
+import { Autocomplete } from '@/components/ui/autocomplete';
 
 // Componentes de formulario de shadcn
 import {
@@ -96,11 +94,12 @@ import {
 // Servicios y tipos
 import { getClients as fetchClientsFromService } from '@/services/clientService';
 import { UNINSTALL_TYPE_OPTIONS, PROJECT_STATUS_OPTIONS } from '@/lib/constants';
-import { FormattedAddress } from '@/components/ui/addressInput'; // Importar el tipo FormattedAddress
+import { FormattedAddress } from '@/types/project'; // Importar el tipo FormattedAddress
 
 // Esquema para la dirección
 const addressSchema = z.object({
   textoCompleto: z.string().min(1, 'La dirección es requerida'),
+  placeId: z.string({ required_error: 'Place ID no es válido' }).min(1, 'Place ID es requerido'),
   coordenadas: z.object({
     latitude: z.number(),
     longitude: z.number(),
@@ -116,6 +115,7 @@ const addressSchema = z.object({
       codigoPostal: z.string().optional(),
     })
     .optional(),
+  detalle: z.string().optional(),
 });
 
 // Esquema principal del formulario
@@ -192,6 +192,15 @@ interface ProjectFormProps {
   submitButtonText?: string;
   onClientAdd?: (client: Omit<LocalClient, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   onCancel?: () => void;
+  /**
+   * Si es true, oculta los botones del formulario para ser manejados externamente
+   * @default false
+   */
+  hideButtons?: boolean;
+  /**
+   * Referencia al formulario para ser controlado externamente
+   */
+  formRef?: React.RefObject<HTMLFormElement>;
 }
 
 export function ProjectForm({
@@ -201,6 +210,8 @@ export function ProjectForm({
   submitButtonText = 'Guardar',
   onClientAdd,
   onCancel,
+  hideButtons = false,
+  formRef,
 }: ProjectFormProps) {
   const {
     data: clients = [],
@@ -220,7 +231,7 @@ export function ProjectForm({
       projectNumber: '',
       glosa: '',
       date: new Date(),
-      status: 'en_progreso',
+      status: 'ingresado',
       subtotal: 0,
       taxRate: 19,
       windowsCount: 0,
@@ -265,7 +276,11 @@ export function ProjectForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className='w-full space-y-3'>
+      <form 
+        ref={formRef}
+        onSubmit={form.handleSubmit(onSubmit)} 
+        className='space-y-6'
+      >
         <div className='w-full gap-3 space-y-1.5'>
           <div className='w-full flex row gap-4'>
             {/* Campo de Cliente */}
@@ -273,106 +288,62 @@ export function ProjectForm({
               control={form.control}
               name='clientId'
               render={({ field }) => (
-                <FormItem className='w-72 space-y-1.5'>
-                  <FormLabel>Cliente *</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant='outline'
-                          role='combobox'
-                          className='w-full justify-between'
-                          disabled={isLoadingClients}
-                        >
-                          {field.value
-                            ? clients.find((client) => client.id === field.value)?.name
-                            : 'Seleccionar cliente...'}
-                          {isLoadingClients ? (
-                            <Loader2 className='ml-2 h-4 w-4 animate-spin' />
-                          ) : (
-                            <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
-                          )}
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className='w-72 p-0' align='start'>
-                      <Command filter={commandFilter}>
-                        <CommandInput placeholder='Buscar cliente...' />
-                        <CommandList>
-                          <CommandEmpty>No se encontraron clientes.</CommandEmpty>
-                          <CommandGroup>
-                            {clients.map((client) => (
-                              <CommandItem
-                                key={client.id}
-                                value={client.name} // Usar el nombre para la búsqueda
-                                onSelect={() => {
-                                  field.onChange(client.id);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    'mr-2 h-4 w-4',
-                                    field.value === client.id ? 'opacity-100' : 'opacity-0'
-                                  )}
-                                />
-                                {client.name}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                  {onClientAdd && (
-                    <>
-                      <ClientModal
-                        isOpen={isClientModalOpen}
-                        onClose={() => setIsClientModalOpen(false)}
-                        onSave={async (newClient) => {
-                          try {
-                            // Asegurarse de que los tipos sean correctos
-                            const clientToAdd = {
-                              name: String(newClient.name || ''),
-                              email: newClient.email ? String(newClient.email) : undefined,
-                              phone: newClient.phone ? String(newClient.phone) : undefined,
-                              rut:
-                                'rut' in newClient && newClient.rut
-                                  ? String(newClient.rut)
-                                  : undefined,
-                              businessName:
-                                'businessName' in newClient && newClient.businessName
-                                  ? String(newClient.businessName)
-                                  : undefined,
-                              address:
-                                'address' in newClient && newClient.address
-                                  ? String(newClient.address)
-                                  : undefined,
-                            } as Omit<LocalClient, 'id' | 'createdAt' | 'updatedAt'>;
-
-                            await onClientAdd(clientToAdd);
-                            // Recargar la lista de clientes
-                            await refetchClients();
-                            // Cerrar el modal
-                            setIsClientModalOpen(false);
-                          } catch (error) {
-                            console.error('Error al guardar el cliente:', error);
-                          }
-                        }}
-                      />
-                      <Button
+                <FormItem className='w-64 space-y-1.5'>
+                  <div className='flex items-center justify-start'>
+                    <FormLabel>Cliente *</FormLabel>
+                    {onClientAdd && (
+                      <Button 
                         type='button'
                         variant='ghost'
                         size='sm'
-                        className='mt-1 text-sm text-primary p-0 h-auto'
+                        className='text-sm text-primary pl-2 h-auto'
                         onClick={() => {
                           setIsClientModalOpen(true);
                         }}
                       >
-                        <PlusCircle className='mr-2 h-4 w-4' />
-                        Agregar nuevo cliente
+                        <PlusCircle className='h-4 w-4' />
                       </Button>
-                    </>
+                    )}
+                  </div>
+                  <Autocomplete
+                    items={clients.map(client => ({
+                      value: client.id,
+                      label: client.name,
+                      ...client
+                    }))}
+                    value={field.value}
+                    onSelect={field.onChange}
+                    placeholder="Seleccionar cliente..."
+                    emptyText="No se encontraron clientes."
+                    searchPlaceholder="Buscar cliente..."
+                    disabled={isLoadingClients}
+                    isLoading={isLoadingClients}
+                    className="w-full"
+                  />
+                  <FormMessage />
+                  {onClientAdd && (
+                    <ClientModal
+                      isOpen={isClientModalOpen}
+                      onClose={() => setIsClientModalOpen(false)}
+                      onSave={async (newClient) => {
+                        try {
+                          // Asegurarse de que los tipos sean correctos
+                          const clientToAdd = {
+                            name: String(newClient.name || ''),
+                            email: newClient.email ? String(newClient.email) : undefined,
+                            phone: newClient.phone ? String(newClient.phone) : undefined,
+                          } as Omit<LocalClient, 'id' | 'createdAt' | 'updatedAt'>;
+
+                          await onClientAdd(clientToAdd);
+                          // Recargar la lista de clientes
+                          await refetchClients();
+                          // Cerrar el modal
+                          setIsClientModalOpen(false);
+                        } catch (error) {
+                          console.error('Error al guardar el cliente:', error);
+                        }
+                      }}
+                    />
                   )}
                 </FormItem>
               )}
@@ -383,11 +354,14 @@ export function ProjectForm({
               control={form.control}
               name='projectNumber'
               render={({ field }) => (
-                <FormItem className='w-28 space-y-1.5'>
-                  <FormLabel>Proyecto</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
+                <FormItem className='w-36 space-y-1.5'>
+                  <div className='flex items-center justify-start'>
+                    <FormLabel>Proyecto</FormLabel>
+                  </div>
+                  <Input 
+                    {...field} 
+                    className='w-full'
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -400,10 +374,11 @@ export function ProjectForm({
               name='glosa'
               render={({ field }) => (
                 <FormItem className='w-64 space-y-1.5'>
-                  <FormLabel>Glosa</FormLabel>
-                  <FormControl>
-                    <Input placeholder='Descripción breve del proyecto' {...field} />
-                  </FormControl>
+                  <Input 
+                    label='Glosa'
+                    placeholder='Descripción breve del proyecto' 
+                    {...field} 
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -414,10 +389,13 @@ export function ProjectForm({
               name='phone'
               render={({ field }) => (
                 <FormItem className='w-36 space-y-1.5'>
-                  <FormLabel>Teléfono</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
+                  <div className='flex items-center justify-start'>
+                    <FormLabel>Teléfono</FormLabel>
+                  </div>
+                  <Input 
+                    {...field} 
+                    className='w-full'
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -428,36 +406,37 @@ export function ProjectForm({
             {/* Campo de Fecha */}
             <FormField
               control={form.control}
-              name='date'
+              name="date"
               render={({ field }) => (
-                <FormItem className='w-52'>
-                  <FormLabel>Fecha *</FormLabel>
+                <FormItem className="w-48 space-y-1.5">
+                  <div className="flex items-center justify-start">
+                    <FormLabel>Fecha *</FormLabel>
+                  </div>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
-                          variant='outline'
+                          variant={"outline"}
                           className={cn(
-                            'w-full justify-start text-left font-normal',
-                            !field.value && 'text-muted-foreground'
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
                           )}
                         >
-                          <CalendarIcon className='mr-2 h-4 w-4' />
                           {field.value ? (
-                            formatDateFns(field.value, 'PPP', { locale: es })
+                            formatDateFns(field.value, "PPP", { locale: es })
                           ) : (
-                            <span>Selecciona una fecha</span>
+                            <span>Seleccionar fecha</span>
                           )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className='w-auto p-0'>
+                    <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
-                        mode='single'
+                        mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
                         initialFocus
-                        locale={es}
                       />
                     </PopoverContent>
                   </Popover>
@@ -471,8 +450,10 @@ export function ProjectForm({
               control={form.control}
               name='status'
               render={({ field }) => (
-                <FormItem className='w-48'>
-                  <FormLabel>Estado *</FormLabel>
+                <FormItem className='w-48 space-y-1.5'>
+                  <div className='flex items-center justify-start'>
+                    <FormLabel>Estado *</FormLabel>
+                  </div>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -499,15 +480,16 @@ export function ProjectForm({
               control={form.control}
               name='subtotal'
               render={({ field }) => (
-                <FormItem className='w-32'>
-                  <FormLabel>Subtotal *</FormLabel>
-                  <FormControl>
-                    <MoneyInput
-                      value={field.value as number}
-                      onValueChange={field.onChange}
-                      placeholder='0,00'
-                    />
-                  </FormControl>
+                <FormItem className='w-40 space-y-1.5'>
+                  <div className='flex items-center justify-start'>
+                    <FormLabel>Subtotal *</FormLabel>
+                  </div>
+                  <MoneyInput
+                    value={field.value as number}
+                    onValueChange={field.onChange}
+                    placeholder='0,00'
+                    className='w-full'
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -518,11 +500,57 @@ export function ProjectForm({
               control={form.control}
               name='taxRate'
               render={({ field }) => (
-                <FormItem className='w-16'>
-                  <FormLabel>IVA *</FormLabel>
-                  <FormControl>
-                    <TaxRateInput value={field.value} onChange={field.onChange} />
-                  </FormControl>
+                <FormItem className='w-20 space-y-1.5'>
+                  <div className='flex items-center justify-start'>
+                    <FormLabel>IVA *</FormLabel>
+                  </div>
+                  <div className='relative'>
+                    <Input
+                      type='text'
+                      inputMode='decimal'
+                      value={field.value !== undefined && field.value !== null ? 
+                        `${field.value.toString().replace('.', ',')} %` : 
+                        ''
+                      }
+                      onChange={(e) => {
+                        // Permitir solo números, coma y punto
+                        const value = e.target.value
+                          .replace(/[^0-9,.]/g, '') // Solo números, coma y punto
+                          .replace(/(\..*)\./g, '$1') // Solo un punto decimal
+                          .replace(/(,.*),/g, '$1'); // Solo una coma decimal
+                        
+                        // Si el campo está vacío, limpiar el valor
+                        if (value === '') {
+                          field.onChange(null);
+                          return;
+                        }
+                        
+                        // Reemplazar coma por punto para el parseo
+                        const normalizedValue = value.replace(',', '.');
+                        
+                        // Validar que sea un número válido entre 0 y 100
+                        if (/^\d*([.,]\d{0,2})?$/.test(value) || value === ',' || value === '.') {
+                          const numValue = parseFloat(normalizedValue);
+                          if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+                            field.onChange(normalizedValue);
+                          } else if (value === ',' || value === '.') {
+                            field.onChange('0.');
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Formatear a 2 decimales al perder el foco
+                        if (field.value !== undefined && field.value !== null) {
+                          const numValue = parseFloat(field.value.toString());
+                          if (!isNaN(numValue)) {
+                            const formattedValue = Math.min(Math.max(0, numValue), 100);
+                            field.onChange(Number(formattedValue.toFixed(2)));
+                          }
+                        }
+                      }}
+                      className='w-full text-right'
+                    />
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -530,64 +558,45 @@ export function ProjectForm({
           </div>
         </div>
         <div className='w-full'>
-          {/* Dirección */}
-          <FormField
-            control={form.control}
-            name='fullAddress'
-            render={({ field }) => (
-              <FormItem className='w-96 md:col-span-2'>
-                <FormLabel>Dirección *</FormLabel>
-                <FormControl>
-                  <div className='space-y-1'>
-                    <AddressInput
-                      value={
-                        typeof field.value === 'string'
-                          ? field.value
-                          : field.value?.textoCompleto || ''
-                      }
-                      onPlaceSelected={(address: FormattedAddress) => {
-                        // Asegurarse de que los componentes siempre tengan valores por defecto
-                        const componentes = {
-                          calle: '',
-                          comuna: '',
-                          region: '',
-                          pais: 'Chile',
-                          ...address.componentes,
-                        };
-
-                        // Crear el objeto de dirección completo
-                        const direccionCompleta = {
-                          textoCompleto: address.textoCompleto,
-                          coordenadas: address.coordenadas || { latitude: 0, longitude: 0 },
-                          componentes,
-                        };
-
-                        // Actualizar el valor del campo
-                        field.onChange(direccionCompleta);
-                      }}
-                      placeholder='Buscar dirección...'
-                      className='w-full'
-                    />
-                    {field.value?.textoCompleto && (
-                      <div className='mt-1 text-sm text-muted-foreground'>
-                        {field.value.textoCompleto}
-                      </div>
-                    )}
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+  {/* Dirección */}
+  <FormField
+    control={form.control}
+    name='fullAddress' // Este campo en tu Zod schema debe ser de tipo `any()` o un `z.object({...})` que coincida con FormattedAddress
+    render={({ field }) => (
+      <FormItem className='w-96 md:col-span-2'>
+        <FormLabel>Dirección *</FormLabel>
+        <FormControl>
+          {/*
+            La integración correcta es mucho más simple. El cambio clave es
+            asegurarse de que el valor pasado a `AddressInput` siempre
+            cumpla con el tipo `FormattedAddress | null`.
+          */}
+          <AddressInput
+            // FIX: Se añade una comprobación para pasar `null` si `field.value`
+            // no es un objeto válido (le falta `placeId`), lo que soluciona el error de tipo.
+            value={field.value && field.value.placeId ? field.value : null}
+            onPlaceSelected={(address: FormattedAddress | null) => {
+              field.onChange(address); // Se pasa el objeto completo o null al estado del formulario.
+            }}
+            placeholder='Buscar por calle, comuna o ciudad...'
+            className='w-full'
           />
-        </div>
-        <div>
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    )}
+  />
+</div>      
+
           {/* Descripción */}
           <FormField
             control={form.control}
             name='description'
             render={({ field }) => (
-              <FormItem className='w-96 md:col-span-2'>
-                <FormLabel>Descripción</FormLabel>
+              <FormItem className='w-96 md:col-span-2 space-y-1.5'>
+                <div className='flex items-center justify-start'>
+                  <FormLabel>Descripción</FormLabel>
+                </div>
                 <FormControl>
                   <Textarea placeholder='Descripción detallada del proyecto...' {...field} />
                 </FormControl>
@@ -595,26 +604,27 @@ export function ProjectForm({
               </FormItem>
             )}
           />
-        </div>
+
         <div className='flex flex-row gap-4'>
           {/* Contadores */}
           <FormField
             control={form.control}
             name='windowsCount'
             render={({ field }) => (
-              <FormItem className='w-24'>
-                <FormLabel>N° Ventanas</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    min='0'
-                    {...field}
-                    value={field.value || ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value === '' ? 0 : Number(e.target.value))
-                    }
-                  />
-                </FormControl>
+              <FormItem className='w-32 space-y-1.5'>
+                <div className='flex items-center justify-start'>
+                  <FormLabel>N° Ventanas</FormLabel>
+                </div>
+                <Input
+                  type='number'
+                  min='0'
+                  {...field}
+                  value={field.value || ''}
+                  onChange={(e) =>
+                    field.onChange(e.target.value === '' ? 0 : Number(e.target.value))
+                  }
+                  className='w-full'
+                />
                 <FormMessage />
               </FormItem>
             )}
@@ -624,20 +634,21 @@ export function ProjectForm({
             control={form.control}
             name='squareMeters'
             render={({ field }) => (
-              <FormItem className='w-24'>
-                <FormLabel>m²</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    step='0.01'
-                    min='0'
-                    {...field}
-                    value={field.value || ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value === '' ? 0 : Number(e.target.value))
-                    }
-                  />
-                </FormControl>
+              <FormItem className='w-32 space-y-1.5'>
+                <div className='flex items-center justify-start'>
+                  <FormLabel>m²</FormLabel>
+                </div>
+                <Input
+                  type='number'
+                  step='0.01'
+                  min='0'
+                  {...field}
+                  value={field.value || ''}
+                  onChange={(e) =>
+                    field.onChange(e.target.value === '' ? 0 : Number(e.target.value))
+                  }
+                  className='w-full'
+                />
                 <FormMessage />
               </FormItem>
             )}
@@ -686,17 +697,19 @@ export function ProjectForm({
           </div>
 
           {/* Botones del formulario */}
-          <div className='flex justify-end space-x-4 pt-6'>
-            {onCancel && (
-              <Button type='button' variant='outline' onClick={onCancel} disabled={isSubmitting}>
-                Cancelar
+          {!hideButtons && (
+            <div className='flex justify-end space-x-4 pt-6'>
+              {onCancel && (
+                <Button type='button' variant='outline' onClick={onCancel} disabled={isSubmitting}>
+                  Cancelar
+                </Button>
+              )}
+              <Button type='submit' disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+                {submitButtonText}
               </Button>
-            )}
-            <Button type='submit' disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-              {submitButtonText}
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
       </form>
     </Form>

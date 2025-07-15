@@ -10,7 +10,7 @@ import { getEvents, addEvent, updateEvent, deleteEvent } from '@/lib/firebase/fi
 import { useToast } from '@/hooks/use-toast';
 import { normalizeSearchText } from '@/utils/search-utils';
 import { startOfDay, endOfDay, isSameDay, parseISO } from '@/lib/calendar-utils';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+
 import {
   DndContext,
   closestCenter,
@@ -338,7 +338,7 @@ export default function CalReactAppPage() {
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <div className="flex flex-col h-screen bg-background text-foreground p-0 sm:p-4">
         <header className="p-4 text-center sm:text-left flex items-center gap-4">
-          <SidebarTrigger className="md:hidden" /> 
+          
           <h1 className="text-3xl font-bold text-primary">CalReact</h1>
         </header>
         

@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Client } from '@/types/client';
 import { getClients, addClient, updateClient, deleteClient } from '@/services/clientService';
 
-import { SidebarTrigger } from '@/components/ui/sidebar';
+
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Table,
@@ -176,7 +176,7 @@ export default function ClientsPage() {
     <div className="flex flex-col h-full p-4 md:p-6 lg:p-8">
       <header className="flex items-center justify-between gap-4 mb-6 md:mb-8">
         <div className="flex items-center gap-4">
-          <SidebarTrigger className="md:hidden" />
+          
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-primary">Gestión de Clientes</h1>
             <p className="text-muted-foreground">Administra la información de tus clientes.</p>

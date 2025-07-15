@@ -2,13 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ocultar controles de incremento/decremento en inputs de tipo número */
+@layer base {
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number'] {
+    -webkit-appearance: none;
+    margin: 0;
+    -moz-appearance: textfield !important;
+  }
+}
+
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%; /* bg-white (Fondo principal Light) */
+    --background: 220, 13%, 91%; /* bg-grey-200 (Fondo principal Light) */
     --foreground: 240 10% 3.9%; /* text-gray-900 (Texto principal Light) */
 
     --card: 0 0% 100%; /* bg-white */
@@ -49,6 +60,8 @@ body {
     --brown-foreground: 0 0% 98%; /* text-white */
     --complete: 142 71% 45%; /* bg-green-400 */
     --complete-foreground: 0 0% 98%; /* text-white */
+    --purple: 262.1 83.3% 57.8%; /* bg-purple-600 (Secundario/Acento Light) */
+    --purple-foreground: 0 0% 100%; /* text-white */
 
     /* Chart colors (can be adjusted if charts are used, keeping for consistency) */
     --chart-1: 12 76% 61%;
@@ -58,8 +71,8 @@ body {
     --chart-5: 27 87% 67%;
 
     /* Sidebar specific colors - Light Mode */
-    --sidebar-background: 216 29% 17%;
-    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-background: 214, 9%, 14%;
+    --sidebar-foreground: 220, 13.5%, 93.5%;
     --sidebar-primary: 221.2 83.2% 50.3%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 262.1 83.3% 54.8%;
@@ -105,14 +118,15 @@ body {
     --chart-5: 340 75% 55%;
 
     /* Sidebar specific colors for dark theme */
-    --sidebar-background: 240 6% 12%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 217.2 91.2% 56.8%;
-    --sidebar-primary-foreground: 0 0% 98%; /* Ajustado para consistencia si es necesario */
-    --sidebar-accent: 259.1 91.1% 62.3%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 5.1% 22%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 214, 9%, 14%;
+    --sidebar-foreground: 220, 13.5%, 93.5%;
+    --sidebar-primary: 221.2 83.2% 50.3%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 262.1 83.3% 54.8%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-ring: 221.2 83.2% 53.3%;
+
   }
 }
 

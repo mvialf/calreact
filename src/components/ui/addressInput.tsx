@@ -1,525 +1,599 @@
-// src/components/ui/addressInput.tsx
-'use client';
+"use client"
 
-import * as React from 'react';
-import { cn } from '@/lib/utils';
-import { Label } from '@/components/ui/label';
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { X, Copy, Link } from 'lucide-react';
-import { Button } from './button';
-import { useGoogleMaps } from '@/hooks/useGoogleMaps';
-import { Loader2 } from 'lucide-react';
+import * as React from "react"
+import { useCallback } from "react"
+import { Loader2, MapPin, MapPinOff, X, MoreVertical, Building, Copy, Map, Share2 } from "lucide-react"
+import { useLoadScript } from "@react-google-maps/api"
+import { extractAddressComponents } from "@/utils/address-utils"
+import { cn } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverAnchor,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-// No redeclaramos los tipos globales ya que están definidos en useGoogleMaps.ts
-// Simplemente definimos tipos para uso interno del componente
-type GoogleMap = any;
-type GoogleMarker = any;
-type GooglePlacesAutocompleteService = any;
-type GooglePlacesAutocompleteSessionToken = any;
-type GooglePlacesService = any;
+// Importar tipos necesarios
+import type { FormattedAddress } from "@/types/project"
 
-// Definición de Tipos
-export interface FormattedAddress {
-  textoCompleto: string;
-  coordenadas: {
-    latitude: number;
-    longitude: number;
-  };
-  componentes: {
-    calle?: string;
-    numero?: string;
-    comuna?: string;
-    ciudad?: string;
-    region?: string;
-    pais?: string;
-    codigoPostal?: string;
-  };
+// Extender la interfaz global de Window para incluir google
+declare global {
+  interface Window {
+    google: typeof google;
+  }
 }
 
-// Omitir las propiedades de HTMLInputElement que queremos redefinir
-type OmitProps = 'value' | 'defaultValue';
+type GooglePlacePrediction = google.maps.places.AutocompletePrediction;
+type GooglePlaceResult = google.maps.places.PlaceResult;
 
-interface AddressInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, OmitProps> {
-  onPlaceSelected?: (place: FormattedAddress) => void;
-  label?: string;
+export interface AddressInputProps {
+  /**
+   * La dirección seleccionada
+   */
+  value?: FormattedAddress | null;
+  /**
+   * Callback que se llama cuando se selecciona una dirección
+   */
+  onSelect?: (address: FormattedAddress | null) => void;
+  /**
+   * Callback que se llama cuando se selecciona una dirección (alias para onSelect)
+   */
+  onPlaceSelected?: (address: FormattedAddress | null) => void;
+  /**
+   * Placeholder del input
+   */
   placeholder?: string;
+  /**
+   * Clase CSS adicional
+   */
   className?: string;
-  value?: string | FormattedAddress;
-  defaultValue?: string | FormattedAddress;
-  onChange?: React.ChangeEventHandler<HTMLInputElement>;
+  /**
+   * Clase CSS adicional para el input
+   */
+  inputClassName?: string;
+  /**
+   * Si el input está deshabilitado
+   */
+  disabled?: boolean;
+  /**
+   * Si el input está cargando desde una fuente externa
+   */
+  externalLoading?: boolean;
 }
 
-const DEBOUNCE_DELAY = 300; // ms
+export function AddressInput({
+  value,
+  onSelect,
+  onPlaceSelected,
+  placeholder = "Buscar dirección",
+  className = "",
+  inputClassName = "",
+  disabled = false,
+  externalLoading = false,
+}: AddressInputProps) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [inputValue, setInputValue] = React.useState(value?.textoCompleto || "");
+  const [suggestions, setSuggestions] = React.useState<GooglePlacePrediction[]>([]);
+  const [selectedAddress, setSelectedAddress] = React.useState<FormattedAddress | null>(value || null);
+  const [additionalInfo, setAdditionalInfo] = React.useState(value?.informacionAdicional || "");
 
-export const AddressInput = React.forwardRef<HTMLInputElement, AddressInputProps>(
-  (
-    {
-      onPlaceSelected,
-      label,
-      placeholder,
-      className,
-      value,
-      defaultValue = '',
-      onChange,
-      ...props
-    },
-    forwardedRef
-  ) => {
-    const apiKey = process.env.NEXT_PUBLIC_Maps_API_KEY || '';
-    const {
-      isLoaded: isGoogleMapsLoaded,
-      isLoading,
-      error: googleMapsError,
-    } = useGoogleMaps(apiKey);
+  // Cargar la API de Google Maps
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    libraries: ["places"],
+  });
 
-    // Función para extraer el valor de texto
-    const getTextValue = useCallback((val: string | FormattedAddress | undefined): string => {
-      if (!val) return '';
-      if (typeof val === 'string') return val;
-      return val.textoCompleto || '';
-    }, []);
+  // Manejar cuando el input se borra
+  const handleInputClear = React.useCallback(() => {
+    setInputValue("");
+    setAdditionalInfo("");
+    if (onPlaceSelected) {
+      onPlaceSelected(null);
+    } else if (onSelect) {
+      onSelect(null);
+    }
+  }, [onPlaceSelected, onSelect]);
+  
+  // Manejar cambios en la información adicional
+  const handleAdditionalInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setAdditionalInfo(newValue);
+    
+    // Actualizar la dirección seleccionada con la información adicional
+    if (selectedAddress) {
+      const updatedAddress = {
+        ...selectedAddress,
+        informacionAdicional: newValue
+      };
+      setSelectedAddress(updatedAddress);
+      onSelect?.(updatedAddress);
+      onPlaceSelected?.(updatedAddress);
+    }
+  };
+  
+  // Actualizar additionalInfo cuando cambia el valor inicial
+  React.useEffect(() => {
+    setAdditionalInfo(value?.informacionAdicional || "");
+  }, [value?.informacionAdicional]);
 
-    const inputRef = useRef<HTMLInputElement | null>(null);
-    const [inputValue, setInputValue] = useState(
-      getTextValue(value) || getTextValue(defaultValue) || ''
-    );
+  // Estado para las sugerencias de direcciones
+  const autocompleteService = React.useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesService = React.useRef<google.maps.places.PlacesService | null>(null);
 
-    // Estados internos
-    const [autocomplete, setAutocomplete] = useState<any>(null);
-    const [placesService, setPlacesService] = useState<any>(null);
-    const [sessionToken, setSessionToken] = useState<any>(null);
-    const [predictions, setPredictions] = useState<Array<any>>([]);
-    const [showPredictions, setShowPredictions] = useState<boolean>(false);
-    const [selectedLocation, setSelectedLocation] = useState<any>(null);
-    const [isSearching, setIsSearching] = useState<boolean>(false);
-    const [isInputFocused, setIsInputFocused] = useState(false);
-    const [showMap, setShowMap] = useState(false);
-    const [mapRef, setMapRef] = useState<HTMLDivElement | null>(null);
-    const [googleMap, setGoogleMap] = useState<any | null>(null);
-    const [marker, setMarker] = useState<any | null>(null);
-    const [currentCoordinates, setCurrentCoordinates] = useState<{
-      lat: number;
-      lng: number;
-    } | null>(null);
-    const [formattedAddress, setFormattedAddress] = useState<string>('');
-    const [isCopied, setIsCopied] = useState<boolean>(false);
-    const [isLinkCopied, setIsLinkCopied] = useState<boolean>(false);
-    const [isError, setIsError] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
+  // Inicializar servicios de Google Places
+  React.useEffect(() => {
+    if (isLoaded && window.google) {
+      autocompleteService.current = new window.google.maps.places.AutocompleteService();
+      placesService.current = new window.google.maps.places.PlacesService(
+        document.createElement('div')
+      );
+    }
+  }, [isLoaded]);
 
-    const inputId = React.useId();
+  // Buscar sugerencias de direcciones
+  const searchAddresses = React.useCallback(async (query: string) => {
+    if (!autocompleteService.current) return;
 
-    // Sincronizar el valor externo con el estado interno y configurar coordenadas y mapa
-    useEffect(() => {
-      if (value !== undefined) {
-        const newValue = getTextValue(value);
-        setInputValue(newValue);
+    try {
+      const request = {
+        input: query,
+        componentRestrictions: { country: 'cl' },
+        types: ['address'],
+      };
 
-        // Si el valor es un objeto FormattedAddress completo, configurar el mapa
-        if (typeof value === 'object' && value.textoCompleto) {
-          setFormattedAddress(value.textoCompleto);
-
-          if (value.coordenadas) {
-            const coords = {
-              lat: value.coordenadas.latitude,
-              lng: value.coordenadas.longitude,
-            };
-            setCurrentCoordinates(coords);
-            setShowMap(true);
+      const results = await new Promise<GooglePlacePrediction[]>((resolve) => {
+        autocompleteService.current?.getPlacePredictions(request, (predictions, status) => {
+          if (status === 'OK' && predictions) {
+            resolve(predictions);
+          } else {
+            resolve([]);
           }
-        } else if (newValue.trim()) {
-          // Si es solo un texto pero no está vacío, mostrar al menos el texto
-          setFormattedAddress(newValue);
-          setShowMap(true);
-        }
-      }
-    }, [value, getTextValue]);
-
-    // Inicializar servicios de Google Maps cuando esté cargada la API
-    useEffect(() => {
-      if (isGoogleMapsLoaded && window.google && window.google.maps && window.google.maps.places) {
-        try {
-          const autocompleteService = new window.google.maps.places.AutocompleteService();
-          const token = new window.google.maps.places.AutocompleteSessionToken();
-
-          setAutocomplete(autocompleteService);
-          setSessionToken(token);
-
-          if (inputRef.current) {
-            const places = new window.google.maps.places.PlacesService(inputRef.current);
-            setPlacesService(places);
-          }
-        } catch (error) {
-          console.error('Error al inicializar servicios de Google Maps:', error);
-          setIsError(true);
-        }
-      }
-    }, [isGoogleMapsLoaded]);
-
-    // Manejar errores de carga de Google Maps
-    useEffect(() => {
-      if (googleMapsError) {
-        console.error('Error al cargar Google Maps:', googleMapsError);
-        setError('No se pudo cargar el servicio de mapas. Por favor, recarga la página.');
-      }
-    }, [googleMapsError]);
-
-    // Resto de las funciones del componente (initMap, initializeAutocomplete, handleInputChange, etc.)
-    // ... (mantener las implementaciones existentes)
-
-    // Función para limpiar el input
-    const handleClear = () => {
-      setInputValue('');
-      setPredictions([]);
-      setShowPredictions(false);
-      setCurrentCoordinates(null);
-      setFormattedAddress('');
-
-      // Notificar al componente padre
-      if (onPlaceSelected) {
-        onPlaceSelected({
-          textoCompleto: '',
-          coordenadas: { latitude: 0, longitude: 0 },
-          componentes: {},
         });
-      }
-
-      // Enfocar el input después de limpiar
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
-    };
-
-    // Función para copiar al portapapeles
-    const copyToClipboard = (text: string, isLink = false) => {
-      navigator.clipboard.writeText(text).then(() => {
-        if (isLink) {
-          setIsLinkCopied(true);
-          setTimeout(() => setIsLinkCopied(false), 2000);
-        } else {
-          setIsCopied(true);
-          setTimeout(() => setIsCopied(false), 2000);
-        }
       });
-    };
 
-    // Función para manejar la selección de una predicción
-    const handleSelectPrediction = (placeId: string, description: string) => {
-      if (placesService && sessionToken) {
-        setIsSearching(true);
-        setError(null);
-        setShowPredictions(false);
+      setSuggestions(results);
+    } catch (error) {
+      console.error('Error al buscar direcciones:', error);
+      setSuggestions([]);
+    }
+  }, []);
 
-        // Obtener detalles del lugar seleccionado
-        placesService.getDetails(
-          {
-            placeId: placeId,
-            fields: ['formatted_address', 'geometry', 'address_components'],
-            sessionToken: sessionToken,
-          },
-          (place: any, status: any) => {
-            if (
-              window.google &&
-              window.google.maps &&
-              window.google.maps.places &&
-              window.google.maps.places.PlacesServiceStatus &&
-              status === window.google.maps.places.PlacesServiceStatus.OK &&
-              place
-            ) {
-              const location = place.geometry?.location;
-              const addressComponents = place.address_components || [];
-
-              // Extraer componentes de la dirección
-              const getAddressComponent = (
-                components: Array<{ types?: string[]; long_name?: string }>,
-                type: string
-              ): string => {
-                if (!components) return '';
-                const component = components.find(
-                  (comp) => comp.types && comp.types.includes(type)
-                );
-                return component ? component.long_name || '' : '';
-              };
-
-              const componentes: Record<string, string> = {
-                calle: getAddressComponent(addressComponents, 'route'),
-                numero: getAddressComponent(addressComponents, 'street_number'),
-                comuna: getAddressComponent(addressComponents, 'sublocality'),
-                ciudad: getAddressComponent(addressComponents, 'locality'),
-                region: getAddressComponent(addressComponents, 'administrative_area_level_1'),
-                pais: getAddressComponent(addressComponents, 'country'),
-                codigoPostal: getAddressComponent(addressComponents, 'postal_code'),
-              };
-
-              const formattedAddress = place.formatted_address || description;
-              const coordinates = location
-                ? {
-                    latitude: location.lat(),
-                    longitude: location.lng(),
-                  }
-                : { latitude: 0, longitude: 0 };
-
-              setFormattedAddress(formattedAddress);
-              setCurrentCoordinates({ lat: coordinates.latitude, lng: coordinates.longitude });
-
-              // Crear el objeto de dirección completo
-              const direccionCompleta = {
-                textoCompleto: formattedAddress,
-                coordenadas: coordinates,
-                componentes: componentes,
-              };
-
-              // Notificar al componente padre
-              if (onPlaceSelected) {
-                onPlaceSelected(direccionCompleta);
-              }
-
-              // Mostrar el mapa
-              setShowMap(true);
-            } else {
-              // Si hay un error, notificar con los datos disponibles
-              if (onPlaceSelected) {
-                onPlaceSelected({
-                  textoCompleto: description,
-                  coordenadas: { latitude: 0, longitude: 0 },
-                  componentes: {},
-                });
-              }
-            }
-            setIsSearching(false);
-          }
-        );
-      }
-    };
-
-    // Función para manejar cambios en el input con debounce
-    const debounceTimer = useRef<number | null>(null);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setInputValue(value);
-
-      // Notificar al componente padre
-      if (onChange) {
-        onChange(e);
-      }
-
-      // Limpiar predicciones si el texto es muy corto
-      if (value.trim().length < 3) {
-        setPredictions([]);
-        setShowPredictions(false);
+  // Manejar la selección de un lugar
+  const handlePlaceSelect = React.useCallback(
+    async (placeId: string) => {
+      if (!window.google || !window.google.maps || !window.google.maps.places) {
+        console.error("Google Maps API no está disponible");
         return;
       }
 
-      // Usar debounce para evitar demasiadas llamadas a la API
-      const handleSearch = (value: string) => {
-        if (debounceTimer.current) {
-          clearTimeout(debounceTimer.current);
-        }
+      setIsLoading(true);
 
-        if (value.trim().length < 3) {
-          setPredictions([]);
-          setShowPredictions(false);
-          return;
-        }
+      try {
+        const placesService = new window.google.maps.places.PlacesService(
+          document.createElement("div")
+        );
 
-        debounceTimer.current = window.setTimeout(() => {
-          if (autocomplete && sessionToken && value.trim().length >= 3) {
-            autocomplete.getPlacePredictions(
-              {
-                input: value,
-                sessionToken: sessionToken,
+        placesService.getDetails(
+          { placeId, fields: ["address_components", "formatted_address", "geometry"] },
+          (place, status) => {
+            if (status !== window.google.maps.places.PlacesServiceStatus.OK || !place) {
+              console.error("Error al obtener detalles del lugar:", status);
+              setIsLoading(false);
+              return;
+            }
+
+            // Extraer componentes de la dirección
+            const addressComponents = extractAddressComponents(place);
+
+            // Formatear la dirección completa según el tipo FormattedAddress
+            const formattedAddress: FormattedAddress = {
+              textoCompleto: place.formatted_address || "",
+              coordenadas: {
+                latitude: place.geometry?.location?.lat() || 0,
+                longitude: place.geometry?.location?.lng() || 0,
               },
-              (predictions: any, status: any) => {
-                if (
-                  window.google &&
-                  window.google.maps &&
-                  window.google.maps.places &&
-                  window.google.maps.places.PlacesServiceStatus &&
-                  status === window.google.maps.places.PlacesServiceStatus.OK &&
-                  predictions
-                ) {
-                  setPredictions(predictions);
-                  setShowPredictions(true);
-                } else {
-                  setPredictions([]);
-                  setShowPredictions(false);
-                }
-              }
-            );
+              placeId: place.place_id,
+              componentes: {
+                calle: addressComponents.route,
+                numero: addressComponents.streetNumber,
+                comuna: addressComponents.locality,
+                ciudad: addressComponents.locality,
+                region: addressComponents.administrativeArea,
+                pais: addressComponents.country,
+                codigoPostal: addressComponents.postalCode,
+              },
+              detalle: place.formatted_address,
+            };
+
+            // Actualizar el estado
+            setSelectedAddress(formattedAddress);
+            setInputValue(formattedAddress.textoCompleto);
+            setSuggestions([]);
+            setIsOpen(false);
+            setIsLoading(false);
+
+            // Llamar a los callbacks
+            onSelect?.(formattedAddress);
+            onPlaceSelected?.(formattedAddress);
           }
-        }, DEBOUNCE_DELAY);
-      };
+        );
+      } catch (error) {
+        console.error("Error al obtener detalles del lugar:", error);
+        setIsLoading(false);
+      }
+    },
+    [onSelect, onPlaceSelected]
+  );
 
-      handleSearch(value);
-    };
+  const handleClear = React.useCallback(() => {
+    setSelectedAddress(null);
+    setInputValue("");
+    setSuggestions([]);
+    onSelect?.(null);
+    onPlaceSelected?.(null);
+  }, [onSelect, onPlaceSelected]);
 
-    // Limpiar el timer al desmontar
-    useEffect(() => {
-      return () => {
-        if (debounceTimer.current) {
-          clearTimeout(debounceTimer.current);
-        }
-      };
-    }, []);
+  // Manejar la acción de copiar la dirección al portapapeles
+  const handleCopyAddress = React.useCallback(() => {
+    if (selectedAddress?.textoCompleto) {
+      navigator.clipboard.writeText(selectedAddress.textoCompleto);
+      // Aquí podrías agregar una notificación de éxito si lo deseas
+    }
+  }, [selectedAddress]);
 
-    // Renderizado del componente
+  // Generar URL de vista previa personalizada
+  const generateShareableLink = useCallback((name?: string) => {
+    if (!selectedAddress?.coordenadas || !selectedAddress.textoCompleto) return '';
+    
+    const baseUrl = `${window.location.origin}/api/map-preview/1`;
+    const params = new URLSearchParams({
+      lat: selectedAddress.coordenadas.latitude.toString(),
+      lng: selectedAddress.coordenadas.longitude.toString(),
+      address: selectedAddress.textoCompleto,
+    });
+    
+    if (name) params.append('name', name);
+    if (selectedAddress.informacionAdicional) {
+      params.append('additionalInfo', selectedAddress.informacionAdicional);
+    }
+    
+    return `${baseUrl}?${params.toString()}`;
+  }, [selectedAddress]);
+
+  // Manejar la acción de ver en el mapa
+  const handleViewOnMap = React.useCallback(() => {
+    const mapUrl = generateShareableLink();
+    if (mapUrl) {
+      window.open(mapUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, [generateShareableLink]);
+  
+  // Manejar la acción de compartir ubicación
+  const handleShareLocation = React.useCallback(async (name?: string) => {
+    const shareUrl = generateShareableLink(name);
+    if (!shareUrl) return;
+    
+    try {
+      if (navigator.share) {
+        const title = name || 'Ubicación';
+        const text = selectedAddress?.informacionAdicional 
+          ? `${selectedAddress.textoCompleto} (${selectedAddress.informacionAdicional})`
+          : selectedAddress?.textoCompleto || '';
+        
+        await navigator.share({
+          title,
+          text,
+          url: shareUrl,
+        });
+      } else {
+        // Fallback para navegadores que no soportan Web Share API
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
+          `${name ? `${name}\n` : ''}${selectedAddress?.textoCompleto || ''}${
+            selectedAddress?.informacionAdicional ? `\n${selectedAddress.informacionAdicional}` : ''
+          }\n\nVer en mapa: ${shareUrl}`
+        )}`;
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      console.error('Error al compartir:', err);
+    }
+  }, [generateShareableLink, selectedAddress]);
+
+  // Estado para controlar la visibilidad del input de información adicional
+  const [showAdditionalInfoInput, setShowAdditionalInfoInput] = React.useState(false);
+  const additionalInfoInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Manejar la acción de mostrar/ocultar el input de información adicional
+  const handleShowAdditionalInfo = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowAdditionalInfoInput(true);
+    // Enfocar el input después de que se monte
+    setTimeout(() => {
+      additionalInfoInputRef.current?.focus();
+    }, 0);
+  }, []);
+
+  // Manejar el guardado de la información adicional
+  const handleSaveAdditionalInfo = React.useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowAdditionalInfoInput(false);
+  }, []);
+
+  // Referencia al input para mantener el foco
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // Manejar cambios en el input
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    
+    // Si el campo está vacío, limpiamos todo
+    if (!newValue) {
+      handleInputClear();
+      return;
+    }
+    
+    // Buscar sugerencias para cualquier longitud de texto
+    searchAddresses(newValue);
+    
+    // Mantener el foco en el input
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+    
+    // Solo abrir el popover si hay texto
+    if (newValue.trim()) {
+      setIsOpen(true);
+    }
+  };
+
+  // Manejar el foco en el input
+  const handleInputFocus = () => {
+    // Mostrar sugerencias solo si hay texto
+    if (inputValue) {
+      setIsOpen(true);
+    }
+    
+    // Mantener el foco en el input
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  // Renderizar el componente de búsqueda de direcciones
+  if (selectedAddress) {
     return (
-      <div className={cn('grid w-full items-center gap-1.5 relative', className)}>
-        {label && <Label htmlFor={inputId}>{label}</Label>}
-        <div className='relative'>
-          <Input
-            id={inputId}
-            ref={(node) => {
-              inputRef.current = node;
-              if (forwardedRef) {
-                if (typeof forwardedRef === 'function') {
-                  forwardedRef(node);
-                } else {
-                  forwardedRef.current = node;
-                }
-              }
-            }}
-            value={inputValue}
-            onChange={handleInputChange}
-            onFocus={() => {
-              setIsInputFocused(true);
-              if (inputValue.length >= 3 && predictions.length > 0) {
-                setShowPredictions(true);
-              }
-            }}
-            onBlur={() => {
-              setTimeout(() => setIsInputFocused(false), 200);
-            }}
-            placeholder={placeholder || 'Buscar dirección...'}
-            className={cn('pr-10 w-full', className)}
-            disabled={props.disabled}
-            required={props.required}
-            name={props.name}
-            autoComplete={props.autoComplete}
-          />
-          {inputValue && (
-            <Button
-              type='button'
-              variant='ghost'
-              size='sm'
-              className='absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-muted-foreground hover:text-foreground'
-              onClick={handleClear}
-            >
-              <X className='h-4 w-4' />
-              <span className='sr-only'>Limpiar dirección</span>
-            </Button>
-          )}
-        </div>
-
-        {/* Mostrar predicciones */}
-        {showPredictions && predictions.length > 0 && isInputFocused && (
-          <div className='absolute z-[100] w-full top-full left-0 mt-1 bg-card text-card-foreground border border-border rounded-md shadow-lg max-h-60 overflow-auto'>
-            {predictions.map((prediction) => (
-              <div
-                key={prediction.place_id}
-                className='px-4 py-2 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors'
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleSelectPrediction(prediction.place_id, prediction.description);
-                }}
-              >
-                {prediction.description}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Mostrar mapa después de seleccionar una dirección */}
-        {showMap && currentCoordinates && (
-          <div className='mt-4 border rounded-md overflow-hidden'>
-            <div
-              ref={(node) => {
-                if (node && window.google && window.google.maps && (!mapRef || !googleMap)) {
-                  // Permitir reinicialización
-                  setMapRef(node);
-                  // Inicializar el mapa
-                  try {
-                    if (
-                      typeof window.google.maps.Map === 'function' &&
-                      typeof window.google.maps.Marker === 'function'
-                    ) {
-                      const map = new window.google.maps.Map(node, {
-                        center: currentCoordinates,
-                        zoom: 16,
-                        disableDefaultUI: true,
-                        zoomControl: true,
-                      });
-
-                      // Agregar marcador
-                      const newMarker = new window.google.maps.Marker({
-                        position: currentCoordinates,
-                        map: map,
-                        title: formattedAddress,
-                      });
-
-                      setGoogleMap(map);
-                      setMarker(newMarker);
+      <div className={cn("w-full bg-background border rounded-md p-3 relative group", className)}>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <MapPin className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm font-medium">
+                {selectedAddress.componentes?.calle} {selectedAddress.componentes?.numero}
+              </span>
+            </div>
+            
+            {/* Menú de acciones */}
+            <div className="flex items-center gap-1">
+                <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Acciones</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-64 p-2"
+                  onInteractOutside={(e) => {
+                    // Prevenir que el menú se cierre cuando se interactúa con el formulario
+                    if (showAdditionalInfoInput && e.target instanceof Element) {
+                      const isInput = e.target.closest('input, button, form');
+                      if (isInput) {
+                        e.preventDefault();
+                        return;
+                      }
                     }
-                  } catch (err) {
-                    console.error('Error al inicializar el mapa:', err);
-                    setError('No se pudo cargar el mapa. Por favor, recarga la página.');
-                  }
-                }
-              }}
-              className='w-full h-48 bg-gray-100'
-            />
-            <div className='p-3 bg-white border-t border-gray-200 flex justify-between items-center'>
-              <div className='truncate flex-1'>
-                <p className='text-sm font-medium text-gray-900 truncate'>{formattedAddress}</p>
-                {currentCoordinates && (
-                  <p className='text-xs text-gray-500 truncate'>
-                    {currentCoordinates.lat.toFixed(6)}, {currentCoordinates.lng.toFixed(6)}
-                  </p>
-                )}
-              </div>
-              <div className='flex space-x-2 ml-2'>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  className='h-8 px-2 text-xs'
-                  onClick={() => copyToClipboard(formattedAddress, false)}
-                >
-                  {isCopied ? '¡Copiado!' : <Copy className='h-3.5 w-3.5' />}
-                </Button>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  className='h-8 px-2 text-xs'
-                  onClick={() => {
-                    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formattedAddress)}&query_place_id=${encodeURIComponent(`${currentCoordinates.lat},${currentCoordinates.lng}`)}`;
-                    copyToClipboard(url, true);
+                    setShowAdditionalInfoInput(false);
                   }}
                 >
-                  {isLinkCopied ? '¡Enlace copiado!' : <Link className='h-3.5 w-3.5' />}
-                </Button>
-              </div>
+                  <div className="relative">
+                    {showAdditionalInfoInput ? (
+                      <form 
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSaveAdditionalInfo(e);
+                        }} 
+                        className="space-y-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="text-xs font-medium text-muted-foreground mb-1">
+                          Información adicional (depto, block, etc.)
+                        </div>
+                        <div className="flex gap-1">
+                          <Input
+                            ref={additionalInfoInputRef}
+                            type="text"
+                            value={additionalInfo}
+                            onChange={handleAdditionalInfoChange}
+                            placeholder="Ej: Depto 405, Block C"
+                            className="h-8 text-sm"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <Button 
+                            type="submit" 
+                            size="sm" 
+                            variant="outline"
+                            className="h-8"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleSaveAdditionalInfo(e);
+                            }}
+                          >
+                            OK
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <DropdownMenuItem 
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleShowAdditionalInfo(e as unknown as React.MouseEvent);
+                        }}
+                      >
+                        <Building className="mr-2 h-4 w-4" />
+                        <span>Agregar información adicional</span>
+                        {additionalInfo && <span className="ml-auto text-xs text-muted-foreground">✓</span>}
+                      </DropdownMenuItem>
+                    )}
+                  </div>
+                  <DropdownMenuItem onClick={handleViewOnMap}>
+                    <Map className="mr-2 h-4 w-4" />
+                    <span>Ver en mapa</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleCopyAddress}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    <span>Copiar dirección</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleShareLocation();
+                    }}
+                  >
+                    <Share2 className="mr-2 h-4 w-4" />
+                    <span>Compartir ubicación</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={handleClear}
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Limpiar dirección</span>
+              </Button>
             </div>
           </div>
-        )}
-
-        <div className='relative w-full'>
-          {(isLoading || isSearching) && (
-            <div className='absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground'>
-              <Loader2 className='h-4 w-4 animate-spin' />
+          
+          {selectedAddress.informacionAdicional && (
+            <div className="text-sm text-muted-foreground pl-6 flex items-center mt-1">
+              <Building className="h-3.5 w-3.5 mr-1.5 flex-shrink-0 opacity-70" />
+              <span className="text-foreground/80">{selectedAddress.informacionAdicional}</span>
+            </div>
+          )}
+          {selectedAddress.componentes?.comuna && (
+            <div className="text-sm text-muted-foreground pl-6">
+              {selectedAddress.componentes.comuna}
+              {selectedAddress.componentes.region && `, ${selectedAddress.componentes.region}`}
             </div>
           )}
         </div>
-
-        {/* Mostrar errores */}
-        {error && <div className='mt-2 text-sm text-red-600'>{error}</div>}
       </div>
     );
   }
-);
 
-AddressInput.displayName = 'AddressInput';
+  return (
+    <div className={cn("w-full", className)}>
+      <Popover 
+        open={isOpen} 
+        onOpenChange={(open) => {
+          // No permitir que el popover se cierre al hacer clic fuera
+          // si hay texto en el input
+          if (!open && inputValue) {
+            return;
+          }
+          setIsOpen(open);
+        }}
+      >
+        <PopoverAnchor asChild>
+          <div className="relative">
+            <Input
+              ref={inputRef}
+              type="text"
+              placeholder={placeholder}
+              value={inputValue}
+              onChange={handleInputChange}
+              onFocus={handleInputFocus}
+              onBlur={(e) => {
+                // Prevenir que el popover se cierre si hay texto
+                if (inputValue) {
+                  e.preventDefault();
+                  if (inputRef.current) {
+                    inputRef.current.focus();
+                  }
+                }
+              }}
+              disabled={disabled || externalLoading || !isLoaded}
+              className={cn("w-full pr-10", inputClassName)}
+              autoComplete="off"
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+              {isLoading || externalLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </div>
+        </PopoverAnchor>
+
+        <PopoverContent
+          className="w-[300px] p-0"
+          align="start"
+        >
+          <Command shouldFilter={false}>
+            <CommandList>
+              {isLoading || externalLoading ? (
+                <div className="flex justify-center items-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : suggestions.length === 0 ? (
+                <CommandEmpty>No se encontraron direcciones</CommandEmpty>
+              ) : (
+                suggestions.map((prediction) => (
+                  <CommandItem
+                    key={prediction.place_id}
+                    value={prediction.description}
+                    onSelect={() => handlePlaceSelect(prediction.place_id)}
+                    className="cursor-pointer"
+                  >
+                    <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{prediction.description}</span>
+                  </CommandItem>
+                ))
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}

@@ -36,7 +36,7 @@ import { Wand2, Trash2, Save, Loader2, RefreshCw } from 'lucide-react';
 import { startOfDay, endOfDay, format } from '@/lib/calendar-utils';
 import { getReferencesByType, type ReferenceItem } from '@/services/eventReferenceService';
 // Importar el componente ProjectModal
-import { ProjectModal } from '@/components/modals/events/ProjectModal';
+import { ProjectModal } from '@/components/modals/ProjectModal';
 
 interface EventModalProps {
   isOpen: boolean;

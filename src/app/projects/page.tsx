@@ -19,7 +19,7 @@ import { addPayment, deletePayment, getPaymentsForProject } from '@/services/pay
 
 // Componentes UI
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,10 +31,11 @@ import TablePagination from '@/components/table/table-pagination';
 import { PaymentDialog } from '@/components/payment-dialog';
 import AccountStatementDialog from '@/components/account-statement-dialog';
 import { ProjectClientDisplay } from '@/components/client-display';
+import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import type { PaymentMethod } from '@/types/payment';
 
 // Iconos
-import { MoreHorizontal, ArrowUpDown, ChevronDown, ChevronUp, PlusCircle, Search, Loader2, SquarePen, Trash2, DollarSign, FileText, Briefcase, Eye, EyeOff } from 'lucide-react';
+import { GanttChartSquare, ArrowUpDown, ChevronDown, ChevronUp, Search, Loader2, SquarePen, Trash2, DollarSign, FileText, Briefcase, Eye, EyeOff } from 'lucide-react';
 
 // Utils
 import { formatCurrency } from '@/utils/format-helpers';
@@ -222,16 +223,14 @@ const ProjectsPage: React.FC = () => {
   if (isError && error) return <div className="text-red-500 p-4">Error al cargar proyectos: {error.message}</div>;
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto px-4 pb-2 bg-background">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Gestión de Proyectos</h1>
-        <Link href="/projects/new">
-          <Button><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Proyecto</Button>
-        </Link>
+        <h1 className="text-3xl font-bold text-primary">Proyectos</h1>
+        <NewProjectDialog />
       </div>
       
       {/* Tabla de Proyectos */}
-      <Card className="mx-6">
+      <Card>
         {/* Controles de Filtro y Acciones */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="relative">
@@ -244,8 +243,8 @@ const ProjectsPage: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => setHideCompletedAndPaid(!hideCompletedAndPaid)} title={hideCompletedAndPaid ? 'Mostrar proyectos completados y pagados' : 'Ocultar proyectos completados y pagados'}>
-              {hideCompletedAndPaid ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            <Button variant="ghost" size="icon2" onClick={() => setHideCompletedAndPaid(!hideCompletedAndPaid)} title={hideCompletedAndPaid ? 'Mostrar proyectos completados y pagados' : 'Ocultar proyectos completados y pagados'}>
+              {hideCompletedAndPaid ? <EyeOff className="h-6 w-6" /> : <Eye className="h-6 w-6" />}
               <span className="sr-only">
                 {hideCompletedAndPaid ? 'Mostrar proyectos completados y pagados' : 'Ocultar proyectos completados y pagados'}
               </span>
@@ -263,12 +262,12 @@ const ProjectsPage: React.FC = () => {
                   />
                 </TableHead>
                 <TableHead className="cursor-pointer" onClick={() => handleSort('projectNumber')}><div className="flex items-center">Proyecto {renderSortIcon('projectNumber')}</div></TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort('createdAt')}><div className="flex items-center">Fecha Creación {renderSortIcon('createdAt')}</div></TableHead>
+                <TableHead className="cursor-pointer" onClick={() => handleSort('createdAt')}><div className="flex items-center justify-center">Fecha Creación {renderSortIcon('createdAt')}</div></TableHead>
                 <TableHead className="cursor-pointer" onClick={() => handleSort('total')}><div className="flex items-center justify-end">Monto Total {renderSortIcon('total')}</div></TableHead>
 
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Pagos</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="text-center justify-center">Estado</TableHead>
+                <TableHead className="text-center justify-center">Pagos</TableHead>
+                <TableHead className="text-center justify-center">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -301,13 +300,13 @@ const ProjectsPage: React.FC = () => {
                     <TableCell>
                       <ProjectClientDisplay project={project} />
                     </TableCell>
-                    <TableCell>{project.createdAt ? formatDate(new Date(project.createdAt), 'dd/MM/yyyy', { locale: es }) : 'N/A'}</TableCell>
+                    <TableCell className="text-center">{project.createdAt ? formatDate(new Date(project.createdAt), 'dd/MM/yyyy', { locale: es }) : 'N/A'}</TableCell>
                     <TableCell className="text-right">{formatCurrency(project.total ?? 0)}</TableCell>
 
-                                        <TableCell>
+                    <TableCell className="text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                           <Button variant="ghost" className="p-0 h-auto font-normal" disabled={updateStatusMutation.isPending}>
+                           <Button variant="secondary" className="p-0 h-auto font-normal" disabled={updateStatusMutation.isPending}>
                               <Badge variant={getStatusBadgeVariant(project.status)} className="cursor-pointer">
                                 {updateStatusMutation.isPending && updateStatusMutation.variables?.projectId === project.id 
                                   ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
@@ -340,11 +339,11 @@ const ProjectsPage: React.FC = () => {
                             </Badge>
                         </div>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            {(addPaymentMutation.isPending && projectForPayment?.id === project.id) || (deleteProjectMutation.isPending && projectToDelete?.id === project.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                          <Button variant="ghost" size="icon2">
+                            {(addPaymentMutation.isPending && projectForPayment?.id === project.id) || (deleteProjectMutation.isPending && projectToDelete?.id === project.id) ? <Loader2 className="h-6 w-6 animate-spin" /> : <GanttChartSquare className="h-6 w-6" />}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -368,19 +367,20 @@ const ProjectsPage: React.FC = () => {
               )}
             </TableBody>
           </Table>
+          <div className="flex items-center justify-between p-4 border-b">
+            {/* Paginación */}
+            {totalPages > 1 && (
+                <TablePagination className="flex justify-between items-center"
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  pageSize={itemsPerPage}
+                  onPageSizeChange={setItemsPerPage}
+                  totalItems={sortedProjects.length}
+                />
+              )}
+          </div>
         </CardContent>
       </Card>
-
-      {/* Paginación */}
-      {totalPages > 1 && (
-        <TablePagination
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-          pageSize={itemsPerPage}
-          onPageSizeChange={setItemsPerPage}
-          totalItems={sortedProjects.length}
-        />
-      )}
 
       {/* Diálogos */}
       {isPaymentDialogOpen && projectForPayment && (

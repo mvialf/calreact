@@ -3,6 +3,7 @@
 import { useRouter, useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format as formatDateFns, parseISO } from 'date-fns';
+import { formatDateForInput } from '@/utils/date-helpers';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,15 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectType } from '@/types/project';
 import { getProjectById, updateProject } from '@/services/projectService';
 import { useToast } from '@/hooks/use-toast';
-import { ProjectForm } from '@/components/projects/ProjectForm';
-import type { ProjectFormValues } from '@/components/projects/ProjectForm';
-
-// Función para formatear la fecha para el input de fecha
-const formatDateForInput = (date: Date | string | undefined): string => {
-  if (!date) return '';
-  const dateObj = date instanceof Date ? date : parseISO(date as string);
-  return formatDateFns(dateObj, 'yyyy-MM-dd');
-};
+import { ProjectForm } from '@/components/forms/ProjectForm';
+import type { ProjectFormValues } from '@/components/forms/ProjectForm';
 
 export default function EditProjectPage() {
   const router = useRouter();
