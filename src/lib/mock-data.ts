@@ -14,7 +14,9 @@ export const mockEvents: EventType[] = [
     startDate: startOfDay(today), // Task for today
     endDate: endOfDay(today),     // Ends end of today
     description: 'Reunión semanal de sincronización del equipo para discutir progresos y bloqueos.',
-    color: 'hsl(var(--primary))', 
+    color: 'hsl(var(--primary))',
+    type: 'Visita', // Valor por defecto
+    referenceId: 'mock-id-1', // Valor por defecto
   },
   {
     id: crypto.randomUUID(),
@@ -24,7 +26,9 @@ export const mockEvents: EventType[] = [
     startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0, 0),
     endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 30, 0),
     description: 'Discusión con Cliente X sobre hitos del Proyecto Alfa.',
-    color: 'hsl(var(--accent))', 
+    color: 'hsl(var(--accent))',
+    type: 'Proyecto', // Valor por defecto
+    referenceId: 'mock-id-2', // Valor por defecto
   },
   {
     id: crypto.randomUUID(),
@@ -32,7 +36,9 @@ export const mockEvents: EventType[] = [
     startDate: startOfDay(tomorrow),
     endDate: endOfDay(tomorrow),
     description: 'Revisión interna de los nuevos diseños de UI.',
-    color: 'hsl(var(--chart-4))', 
+    color: 'hsl(var(--chart-4))',
+    type: 'Postventa', // Valor por defecto
+    referenceId: 'mock-id-3', // Valor por defecto
   },
   {
     id: crypto.randomUUID(),
@@ -41,6 +47,8 @@ export const mockEvents: EventType[] = [
     endDate: endOfDay(yesterday), // If it's a full day workshop
     description: 'Taller de día completo sobre prácticas de desarrollo ágil.',
     color: 'hsl(var(--chart-2))',
+    type: 'Visita', // Valor por defecto
+    referenceId: 'mock-id-4', // Valor por defecto
   },
   {
     id: crypto.randomUUID(),
@@ -49,6 +57,8 @@ export const mockEvents: EventType[] = [
     endDate: endOfDay(addDays(nextWeekDate, 2)), // Multi-day task
     description: 'Sesión intensiva de planificación para el próximo lanzamiento del producto.',
     color: 'hsl(var(--destructive))',
+    type: 'Proyecto', // Valor por defecto
+    referenceId: 'mock-id-5', // Valor por defecto
   },
   {
     id: crypto.randomUUID(),
@@ -57,5 +67,7 @@ export const mockEvents: EventType[] = [
     endDate: endOfDay(today),
     description: 'Una tarea estándar para este día.',
     color: 'hsl(var(--secondary))',
+    type: 'Visita', // Valor por defecto
+    referenceId: 'mock-id-6', // Valor por defecto
   }
 ];

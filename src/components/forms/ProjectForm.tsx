@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import * as React from 'react';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
-import { format as formatDateFns, parseISO } from 'date-fns';
+import { format as formatDateFns, parseISO, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatDateForInput } from '@/utils/date-helpers';
+import { useToast } from '@/components/ui/use-toast';
 
 // Tipos y constantes locales
 type ProjectStatus =
@@ -57,6 +59,7 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { AddressInput } from '@/components/ui/addressInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -75,7 +78,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, Loader2, PlusCircle } from 'lucide-react';
+import { Loader2, PlusCircle } from 'lucide-react';
 import ClientModal from '@/components/client-modal';
 import { cn } from '@/lib/utils';
 import { Autocomplete } from '@/components/ui/autocomplete';
@@ -84,11 +87,9 @@ import { Autocomplete } from '@/components/ui/autocomplete';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from '@/components/ui/form';
 
 // Servicios y tipos
@@ -172,7 +173,11 @@ export const projectFormSchema = z
             : val,
       z.number().min(0).optional().default(0)
     ),
-    phone: z.string().optional(),
+    phone: z.string().optional().refine(value => {
+      if (!value) return true; // Allow empty value
+      // Simple regex for E.164 format
+      return /^\+[1-9]\d{1,14}$/.test(value);
+    }, 'Número de teléfono inválido.'),
     fullAddress: addressSchema.optional(),
     description: z.string().optional(),
     uninstall: z.boolean().default(false),
@@ -186,7 +191,7 @@ export const projectFormSchema = z
 export type ProjectFormValues = z.infer<typeof projectFormSchema>;
 
 interface ProjectFormProps {
-  defaultValues?: Partial<ProjectFormValues>;
+  initialData?: Partial<ProjectFormValues>;
   onSubmit: SubmitHandler<ProjectFormValues>;
   isSubmitting?: boolean;
   submitButtonText?: string;
@@ -204,7 +209,7 @@ interface ProjectFormProps {
 }
 
 export function ProjectForm({
-  defaultValues = {},
+  initialData = {},
   onSubmit,
   isSubmitting = false,
   submitButtonText = 'Guardar',
@@ -213,6 +218,8 @@ export function ProjectForm({
   hideButtons = false,
   formRef,
 }: ProjectFormProps) {
+  const { toast } = useToast();
+  
   const {
     data: clients = [],
     isLoading: isLoadingClients,
@@ -236,7 +243,7 @@ export function ProjectForm({
       taxRate: 19,
       windowsCount: 0,
       squareMeters: 0,
-      phone: '',
+      phone: initialData?.phone || '',
       description: '',
       uninstall: false,
       uninstallTypes: [],
@@ -253,11 +260,40 @@ export function ProjectForm({
           codigoPostal: '',
         },
       },
-      ...defaultValues,
+      ...initialData,
     },
   });
 
-  const { control, watch, setValue } = form;
+  const { control, watch, setValue, formState: { errors } } = form;
+
+  // Mostrar toasts cuando hay errores de validación
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      // Mostrar un toast general de error de validación
+      toast({
+        title: 'Error de validación',
+        description: 'Por favor, revisa los campos marcados en rojo.',
+        variant: 'destructive',
+      });
+    }
+  }, [errors, toast]);
+
+  // Manejador de envío personalizado
+  const handleFormSubmit = async (data: ProjectFormValues) => {
+    try {
+      await onSubmit(data);
+      toast({
+        title: '¡Éxito!',
+        description: 'El proyecto se ha guardado correctamente.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Ocurrió un error al guardar el proyecto',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const watchUninstall = watch('uninstall');
   const watchUninstallTypes = watch('uninstallTypes') || [];
@@ -273,262 +309,171 @@ export function ProjectForm({
       }
     }
   }, [watchClientId, clients, setValue]);
-
   return (
     <Form {...form}>
-      <form 
+      <form
         ref={formRef}
-        onSubmit={form.handleSubmit(onSubmit)} 
-        className='space-y-6'
+        onSubmit={form.handleSubmit(handleFormSubmit)}
       >
-        <div className='w-full gap-3 space-y-1.5'>
-          <div className='w-full flex row gap-4'>
-            {/* Campo de Cliente */}
-            <FormField
-              control={form.control}
-              name='clientId'
-              render={({ field }) => (
-                <FormItem className='w-64 space-y-1.5'>
-                  <div className='flex items-center justify-start'>
-                    <FormLabel>Cliente *</FormLabel>
-                    {onClientAdd && (
-                      <Button 
-                        type='button'
-                        variant='ghost'
-                        size='sm'
-                        className='text-sm text-primary pl-2 h-auto'
-                        onClick={() => {
-                          setIsClientModalOpen(true);
-                        }}
-                      >
-                        <PlusCircle className='h-4 w-4' />
-                      </Button>
-                    )}
-                  </div>
-                  <Autocomplete
-                    items={clients.map(client => ({
-                      value: client.id,
-                      label: client.name,
-                      ...client
-                    }))}
-                    value={field.value}
-                    onSelect={field.onChange}
-                    placeholder="Seleccionar cliente..."
-                    emptyText="No se encontraron clientes."
-                    searchPlaceholder="Buscar cliente..."
-                    disabled={isLoadingClients}
-                    isLoading={isLoadingClients}
-                    className="w-full"
-                  />
-                  <FormMessage />
-                  {onClientAdd && (
-                    <ClientModal
-                      isOpen={isClientModalOpen}
-                      onClose={() => setIsClientModalOpen(false)}
-                      onSave={async (newClient) => {
-                        try {
-                          // Asegurarse de que los tipos sean correctos
-                          const clientToAdd = {
-                            name: String(newClient.name || ''),
-                            email: newClient.email ? String(newClient.email) : undefined,
-                            phone: newClient.phone ? String(newClient.phone) : undefined,
-                          } as Omit<LocalClient, 'id' | 'createdAt' | 'updatedAt'>;
+        <div className='space-y-1.5'>
 
-                          await onClientAdd(clientToAdd);
-                          // Recargar la lista de clientes
-                          await refetchClients();
-                          // Cerrar el modal
-                          setIsClientModalOpen(false);
-                        } catch (error) {
-                          console.error('Error al guardar el cliente:', error);
-                        }
-                      }}
-                    />
-                  )}
-                </FormItem>
-              )}
-            />
-
-            {/* Campo de Número de Proyecto */}
-            <FormField
-              control={form.control}
-              name='projectNumber'
-              render={({ field }) => (
-                <FormItem className='w-36 space-y-1.5'>
-                  <div className='flex items-center justify-start'>
-                    <FormLabel>Proyecto</FormLabel>
-                  </div>
-                  <Input 
-                    {...field} 
-                    className='w-full'
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <div className='flex flex-row gap-4'>
-            {/* Glosa */}
-            <FormField
-              control={form.control}
-              name='glosa'
-              render={({ field }) => (
-                <FormItem className='w-64 space-y-1.5'>
-                  <Input 
-                    label='Glosa'
-                    placeholder='Descripción breve del proyecto' 
-                    {...field} 
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* Teléfono */}
-            <FormField
-              control={form.control}
-              name='phone'
-              render={({ field }) => (
-                <FormItem className='w-36 space-y-1.5'>
-                  <div className='flex items-center justify-start'>
-                    <FormLabel>Teléfono</FormLabel>
-                  </div>
-                  <Input 
-                    {...field} 
-                    className='w-full'
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className='flex flex-row gap-4'>
-            {/* Campo de Fecha */}
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem className="w-48 space-y-1.5">
-                  <div className="flex items-center justify-start">
-                    <FormLabel>Fecha *</FormLabel>
-                  </div>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
+          {/* Bloque de campos con espaciado interno */}
+          <div className='w-full space-y-1.5'>
+            {/* Fila Cliente y Proyecto */}
+            <div className='flex w-full flex-row items-start gap-4'>
+              <FormField
+                control={form.control}
+                name='clientId'
+                render={({ field }) => (
+                  <FormItem className='w-64 space-y-1'>
+                    
+                    <FormLabel className='inline-flex items-center gap-1'>
+                      Cliente *
+                      {onClientAdd && (
+                        <Button 
+                          type='button' 
+                          variant='ghost' 
+                          size='icon' 
+                          className='h-4 w-4 p-0 -mr-1 text-primary hover:bg-transparent hover:text-primary/80' 
+                          onClick={() => setIsClientModalOpen(true)}
                         >
-                          {field.value ? (
-                            formatDateFns(field.value, "PPP", { locale: es })
-                          ) : (
-                            <span>Seleccionar fecha</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          <PlusCircle className='h-3.5 w-3.5' />
                         </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                      )}
+                    </FormLabel>
+                    <Autocomplete
+                      items={clients.map(client => ({ value: client.id, label: client.name, ...client }))}
+                      value={field.value}
+                      onSelect={field.onChange}
+                      placeholder="Seleccionar cliente..."
+                      emptyText="No se encontraron clientes."
+                      searchPlaceholder="Buscar cliente..."
+                      disabled={isLoadingClients}
+                      isLoading={isLoadingClients}
+                      className="w-full"
+                    />
 
-            {/* Campo de Estado */}
-            <FormField
-              control={form.control}
-              name='status'
-              render={({ field }) => (
-                <FormItem className='w-48 space-y-1.5'>
-                  <div className='flex items-center justify-start'>
-                    <FormLabel>Estado *</FormLabel>
-                  </div>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='projectNumber'
+                render={({ field }) => (
+                  <FormItem className='w-36 space-y-1'>
+                    <FormLabel>Proyecto</FormLabel>
+                    <Input {...field} className='w-full' />
+
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Fila Glosa y Teléfono */}
+            <div className='flex flex-row items-start gap-4'>
+              <FormField
+                control={form.control}
+                name='glosa'
+                render={({ field }) => ( 
+                  <FormItem className='w-1/2 space-y-1'>
+                    <FormLabel>Glosa</FormLabel>
+                    <Input placeholder='Descripción breve del proyecto' {...field} />
+
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='phone'
+                render={({ field }) => (
+                  <FormItem className='w-1/2 space-y-1'>
+                    <FormLabel>Teléfono</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder='Seleccionar estado' />
-                      </SelectTrigger>
+                      <PhoneInput {...field} />
                     </FormControl>
-                    <SelectContent>
-                      {PROJECT_STATUS_OPTIONS.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+                  </FormItem>
+                )}
+              />
+            </div>
 
-          <div className='flex gap-4'>
-            {/* Subtotal */}
-            <FormField
-              control={form.control}
-              name='subtotal'
-              render={({ field }) => (
-                <FormItem className='w-40 space-y-1.5'>
-                  <div className='flex items-center justify-start'>
-                    <FormLabel>Subtotal *</FormLabel>
-                  </div>
-                  <MoneyInput
-                    value={field.value as number}
-                    onValueChange={field.onChange}
-                    placeholder='0,00'
-                    className='w-full'
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Fila Fecha y Estado */}
+            <div className='flex flex-row items-start gap-4'>
+              <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem className="w-36 space-y-1">
+                    <FormLabel>Fecha *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date" 
+                        {...field} 
+                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value) : null;
+                          field.onChange(date);
+                        }}
+                        className="w-full"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='status'
+                render={({ field }) => (
+                  <FormItem className='w-40 space-y-1'>
+                    <FormLabel>Estado *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder='Seleccionar estado' /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PROJECT_STATUS_OPTIONS.map((status) => (<SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
 
-            {/* IVA */}
-            <FormField
-              control={form.control}
-              name='taxRate'
-              render={({ field }) => (
-                <FormItem className='w-20 space-y-1.5'>
-                  <div className='flex items-center justify-start'>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Fila Elementos, m², IVA y Subtotal */}
+            <div className='flex items-start gap-4'>
+              <FormField
+                control={form.control}
+                name='windowsCount'
+                render={({ field }) => (
+                  <FormItem className='w-20 space-y-1'>
+                    <FormLabel>Elementos</FormLabel>
+                    <Input type='number' min='0' {...field} value={field.value || ''} onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))} className='w-full' />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='squareMeters'
+                render={({ field }) => (
+                  <FormItem className='w-20 space-y-1'>
+                    <FormLabel>m²</FormLabel>
+                    <Input type='number' step='0.01' min='0' {...field} value={field.value || ''} onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))} className='w-full' />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='taxRate'
+                render={({ field }) => (
+                  <FormItem className='w-16 space-y-1'>
                     <FormLabel>IVA *</FormLabel>
-                  </div>
-                  <div className='relative'>
                     <Input
                       type='text'
-                      inputMode='decimal'
-                      value={field.value !== undefined && field.value !== null ? 
-                        `${field.value.toString().replace('.', ',')} %` : 
-                        ''
-                      }
+                      value={field.value != null ? `${String(field.value).replace('.', ',')} %` : ''}
                       onChange={(e) => {
-                        // Permitir solo números, coma y punto
-                        const value = e.target.value
-                          .replace(/[^0-9,.]/g, '') // Solo números, coma y punto
-                          .replace(/(\..*)\./g, '$1') // Solo un punto decimal
-                          .replace(/(,.*),/g, '$1'); // Solo una coma decimal
-                        
-                        // Si el campo está vacío, limpiar el valor
-                        if (value === '') {
-                          field.onChange(null);
-                          return;
-                        }
-                        
-                        // Reemplazar coma por punto para el parseo
+                        const value = e.target.value.replace(/[^0-9,.]/g, '');
+                        if (value === '') { field.onChange(null); return; }
                         const normalizedValue = value.replace(',', '.');
-                        
-                        // Validar que sea un número válido entre 0 y 100
                         if (/^\d*([.,]\d{0,2})?$/.test(value) || value === ',' || value === '.') {
                           const numValue = parseFloat(normalizedValue);
                           if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
@@ -538,10 +483,9 @@ export function ProjectForm({
                           }
                         }
                       }}
-                      onBlur={(e) => {
-                        // Formatear a 2 decimales al perder el foco
-                        if (field.value !== undefined && field.value !== null) {
-                          const numValue = parseFloat(field.value.toString());
+                      onBlur={() => {
+                        if (field.value != null) {
+                          const numValue = parseFloat(String(field.value));
                           if (!isNaN(numValue)) {
                             const formattedValue = Math.min(Math.max(0, numValue), 100);
                             field.onChange(Number(formattedValue.toFixed(2)));
@@ -550,118 +494,47 @@ export function ProjectForm({
                       }}
                       className='w-full text-right'
                     />
-                  </div>
-                  <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='subtotal'
+                render={({ field }) => (
+                  <FormItem className='w-32 space-y-1'>
+                    <FormLabel>Subtotal *</FormLabel>
+                    <MoneyInput value={field.value} onValueChange={field.onChange} placeholder='$ 0' className='w-full' />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Fila Dirección */}
+            <FormField
+              control={form.control}
+              name='fullAddress'
+              render={({ field }) => (
+                <FormItem className='w-96 space-y-1'>
+                  <FormLabel>Dirección *</FormLabel>
+                  <FormControl>
+                    <AddressInput
+                      value={field.value && field.value.placeId ? field.value : null}
+                      onPlaceSelected={(address) => field.onChange(address)}
+                      placeholder='Buscar por calle, comuna o ciudad...'
+                      className='w-full'
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />
           </div>
-        </div>
-        <div className='w-full'>
-  {/* Dirección */}
-  <FormField
-    control={form.control}
-    name='fullAddress' // Este campo en tu Zod schema debe ser de tipo `any()` o un `z.object({...})` que coincida con FormattedAddress
-    render={({ field }) => (
-      <FormItem className='w-96 md:col-span-2'>
-        <FormLabel>Dirección *</FormLabel>
-        <FormControl>
-          {/*
-            La integración correcta es mucho más simple. El cambio clave es
-            asegurarse de que el valor pasado a `AddressInput` siempre
-            cumpla con el tipo `FormattedAddress | null`.
-          */}
-          <AddressInput
-            // FIX: Se añade una comprobación para pasar `null` si `field.value`
-            // no es un objeto válido (le falta `placeId`), lo que soluciona el error de tipo.
-            value={field.value && field.value.placeId ? field.value : null}
-            onPlaceSelected={(address: FormattedAddress | null) => {
-              field.onChange(address); // Se pasa el objeto completo o null al estado del formulario.
-            }}
-            placeholder='Buscar por calle, comuna o ciudad...'
-            className='w-full'
-          />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    )}
-  />
-</div>      
-
-          {/* Descripción */}
-          <FormField
-            control={form.control}
-            name='description'
-            render={({ field }) => (
-              <FormItem className='w-96 md:col-span-2 space-y-1.5'>
-                <div className='flex items-center justify-start'>
-                  <FormLabel>Descripción</FormLabel>
-                </div>
-                <FormControl>
-                  <Textarea placeholder='Descripción detallada del proyecto...' {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-        <div className='flex flex-row gap-4'>
-          {/* Contadores */}
-          <FormField
-            control={form.control}
-            name='windowsCount'
-            render={({ field }) => (
-              <FormItem className='w-32 space-y-1.5'>
-                <div className='flex items-center justify-start'>
-                  <FormLabel>N° Ventanas</FormLabel>
-                </div>
-                <Input
-                  type='number'
-                  min='0'
-                  {...field}
-                  value={field.value || ''}
-                  onChange={(e) =>
-                    field.onChange(e.target.value === '' ? 0 : Number(e.target.value))
-                  }
-                  className='w-full'
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='squareMeters'
-            render={({ field }) => (
-              <FormItem className='w-32 space-y-1.5'>
-                <div className='flex items-center justify-start'>
-                  <FormLabel>m²</FormLabel>
-                </div>
-                <Input
-                  type='number'
-                  step='0.01'
-                  min='0'
-                  {...field}
-                  value={field.value || ''}
-                  onChange={(e) =>
-                    field.onChange(e.target.value === '' ? 0 : Number(e.target.value))
-                  }
-                  className='w-full'
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <div>
           {/* Opciones de Desinstalación */}
-          <div className='space-y-4 md:col-span-2'>
+          <div className='space-y-2 py-2'>
             <FormField
               control={form.control}
               name='uninstall'
               render={({ field }) => (
-                <FormItem className='flex items-center space-x-2'>
+                <FormItem className='flex items-center space-x-2 space-y-2'>
                   <FormControl>
                     <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                   </FormControl>
@@ -669,7 +542,6 @@ export function ProjectForm({
                 </FormItem>
               )}
             />
-
             {watchUninstall && (
               <div className='pl-6 space-y-2'>
                 <Label>Tipos de desinstalación</Label>
@@ -680,40 +552,44 @@ export function ProjectForm({
                         id={`uninstall-${type}`}
                         checked={watchUninstallTypes.includes(type)}
                         onCheckedChange={(checked) => {
-                          const newTypes = checked
-                            ? [...watchUninstallTypes, type]
-                            : watchUninstallTypes.filter((t) => t !== type);
+                          const newTypes = checked ? [...watchUninstallTypes, type] : watchUninstallTypes.filter((t) => t !== type);
                           setValue('uninstallTypes', newTypes);
                         }}
                       />
-                      <Label htmlFor={`uninstall-${type}`} className='font-normal'>
-                        {type}
-                      </Label>
+                      <Label htmlFor={`uninstall-${type}`} className='font-normal'>{type}</Label>
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
-
-          {/* Botones del formulario */}
-          {!hideButtons && (
-            <div className='flex justify-end space-x-4 pt-6'>
-              {onCancel && (
-                <Button type='button' variant='outline' onClick={onCancel} disabled={isSubmitting}>
-                  Cancelar
-                </Button>
-              )}
-              <Button type='submit' disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-                {submitButtonText}
-              </Button>
-            </div>
-          )}
         </div>
+          {/* Campo Descripción */}
+          <FormField
+            control={form.control}
+            name='description'
+            render={({ field }) => (
+              <FormItem className='w-96 space-y-1'>
+                <FormLabel>Descripción</FormLabel>
+                <FormControl>
+                  <Textarea placeholder='Descripción detallada del proyecto...' {...field} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        
+
+        {/* Botones del Formulario */}
+        {!hideButtons && (
+          <div className='flex justify-end space-x-4 pt-6'>
+            {onCancel && (<Button type='button' variant='outline' onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>)}
+            <Button type='submit' disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              {submitButtonText}
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );
 }
-
-export default ProjectForm;

@@ -22,7 +22,7 @@ export interface AddressComponents {
 export interface FormattedAddress {
   textoCompleto: string;
   coordenadas: GeoCoordinates;
-  placeId?: string;
+  placeId: string;
   componentes?: AddressComponents;
   detalle?: string;
   informacionAdicional?: string; // Para información adicional como número de departamento, block, etc.

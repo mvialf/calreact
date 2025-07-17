@@ -30,9 +30,10 @@ export interface ModalLayoutProps {
    */
   onClose: () => void;
   /**
-   * Función que se ejecutará al hacer clic en el botón 'Crear'
+   * Función opcional que se ejecutará al hacer clic en el botón de submit
+   * Si no se proporciona, se espera que el formulario maneje su propio submit
    */
-  onSubmit: () => void;
+  onSubmit?: () => void;
   /**
    * Indica si la acción de guardar está en curso
    */
@@ -49,6 +50,11 @@ export interface ModalLayoutProps {
    * Deshabilitar el botón de guardar
    */
   disabled?: boolean;
+  /**
+   * Si es true, muestra los botones por defecto (Cancelar y Guardar)
+   * Si es false, permite que el contenido de la modal maneje sus propios botones
+   */
+  showDefaultButtons?: boolean;
 }
 
 /**
@@ -66,37 +72,40 @@ export function ModalLayout({
   submitButtonText = "Crear",
   className,
   disabled = false,
+  showDefaultButtons = true,
 }: ModalLayoutProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={cn("p-0 gap-0 sm:max-w-md md:max-w-lg lg:max-w-xl", className)}>
-        <DialogHeader className="bg-background p-6 border-b">
+      <DialogContent className={cn("p-0 gap-0 w-full", className)}>
+        <DialogHeader className="bg-background px-6 py-4 border-b">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         
         {/* Contenido con scroll */}
-        <div className="bg-card max-h-[60vh] overflow-y-auto px-6 py-4">
+        <div className="bg-card max-h-[75vh] overflow-y-auto px-6 py-2">
           {children}
         </div>
         
-        <DialogFooter className="flex justify-end space-x-2 pt-4 border-t p-6">
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={onSubmit}
-            disabled={disabled || isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Procesando
-              </>
-            ) : (
-              submitButtonText
-            )}
-          </Button>
-        </DialogFooter>
+        {showDefaultButtons && (
+          <DialogFooter className="bg-card flex justify-end space-x-2 py-4 px-6 border-t">
+            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={onSubmit}
+              disabled={disabled || isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Procesando
+                </>
+              ) : (
+                submitButtonText
+              )}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

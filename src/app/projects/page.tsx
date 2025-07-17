@@ -32,6 +32,7 @@ import { PaymentDialog } from '@/components/payment-dialog';
 import AccountStatementDialog from '@/components/account-statement-dialog';
 import { ProjectClientDisplay } from '@/components/client-display';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
+import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
 import type { PaymentMethod } from '@/types/payment';
 
 // Iconos
@@ -114,11 +115,7 @@ const ProjectsPage: React.FC = () => {
     setSelectedRows(isChecked ? paginatedProjects.map(p => p.id) : []);
   };
 
-  const handleEdit = (project: EnrichedProject) => {
-    // Lógica para abrir modal de edición o navegar a página de edición
-    // Por ejemplo: router.push(`/projects/edit/${project.id}`);
-    toast.info(`Funcionalidad de editar para "${project.projectNumber}" pendiente de implementación.`);
-  };
+  
 
   const handleOpenPaymentDialog = (project: EnrichedProject) => {
     setProjectForPayment(project);
@@ -347,7 +344,9 @@ const ProjectsPage: React.FC = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={() => handleEdit(project)}><SquarePen className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+                                                    <EditProjectDialog project={project}>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}><SquarePen className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+                          </EditProjectDialog>
                           <DropdownMenuItem onSelect={() => handleOpenPaymentDialog(project)}><DollarSign className="mr-2 h-4 w-4" /> Registrar Pago</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => handleOpenAccountStatementDialog(project)}><FileText className="mr-2 h-4 w-4" /> Estado de Cuenta</DropdownMenuItem>
                           <DropdownMenuSeparator />

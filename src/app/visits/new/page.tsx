@@ -34,19 +34,20 @@ import {
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { VisitStatus, VISIT_STATUS_OPTIONS, DEFAULT_VISIT_STATUS } from '@/types/visit';
-import { AddressInput, type FormattedAddress } from '@/components/ui/addressInput';
+import { AddressInput } from '@/components/ui/addressInput';
+import type { FormattedAddress } from '@/types/project';
 
 // Usar el array de opciones directamente para la validación
 // Esquema para la dirección completa
 export const fullAddressSchema = z
   .object({
-    textoCompleto: z.string().optional(),
+    textoCompleto: z.string(),
+    placeId: z.string().min(1, 'Place ID es requerido'),
     coordenadas: z
       .object({
         latitude: z.number(),
         longitude: z.number(),
-      })
-      .optional(),
+      }),
     componentes: z
       .object({
         calle: z.string().optional(),
@@ -263,7 +264,7 @@ export default function NewVisitPage() {
                   <FormControl>
                     <AddressInput
                       onPlaceSelected={handleAddressSelect}
-                      defaultValue={field.value?.textoCompleto || ''}
+                      value={field.value || null}
                       placeholder='Buscar dirección...'
                     />
                   </FormControl>

@@ -15,11 +15,23 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
+import flags from "react-phone-number-input/flags"
+import { Country } from "react-phone-number-input"
+
+type CountryFlagProps = {
+  countryCode?: Country;
+  label: string;
+  className?: string;
+};
 
 export interface AutocompleteItem {
-  value: string
-  label: string
-  [key: string]: any
+  value: string;
+  label: string;
+  flag?: string;
+  countryCode?: Country;
+  countryName?: string;
+  phoneCode?: string;
+  [key: string]: any;
 }
 
 interface AutocompleteProps {
@@ -60,7 +72,13 @@ export function Autocomplete({
     if (value) {
       const item = items.find(item => item.value === value)
       setSelectedItem(item || null)
-      setInputValue(item?.label || "")
+      // Mostrar solo el nombre del país y el código en el input, no la bandera
+      if (item) {
+        const labelWithoutFlag = item.label.replace(/^[^\w]*/, ''); // Eliminar la bandera del label
+        setInputValue(labelWithoutFlag);
+      } else {
+        setInputValue("");
+      }
     } else {
       setSelectedItem(null)
       setInputValue("")
@@ -106,26 +124,41 @@ export function Autocomplete({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverAnchor asChild>
           <div className="relative">
-            <Input
-              type="text"
-              placeholder={placeholder}
-              value={inputValue}
-              onChange={handleInputChange}
-              onFocus={() => {
-                if (inputValue.length > 0) {
-                  setOpen(true)
-                }
-              }}
-              onClick={(e) => {
-                // Evitar que el clic en el input cierre el popover
-                e.stopPropagation()
-                if (inputValue.length > 0) {
-                  setOpen(true)
-                }
-              }}
-              disabled={disabled || isLoading}
-              className={cn("w-full pr-10", inputClassName)}
-            />
+            <div className="relative w-full">
+              {selectedItem?.countryCode && (
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center h-full">
+                  <CountryFlag 
+                    countryCode={selectedItem.countryCode}
+                    label={selectedItem.countryName || selectedItem.label}
+                    className="h-4 w-6"
+                  />
+                </div>
+              )}
+              <Input
+                type="text"
+                placeholder={placeholder}
+                value={inputValue}
+                onChange={handleInputChange}
+                onFocus={() => {
+                  if (inputValue.length > 0) {
+                    setOpen(true)
+                  }
+                }}
+                onClick={(e) => {
+                  // Evitar que el clic en el input cierre el popover
+                  e.stopPropagation()
+                  if (inputValue.length > 0) {
+                    setOpen(true)
+                  }
+                }}
+                disabled={disabled || isLoading}
+                className={cn(
+                  "w-full pr-10 h-10",
+                  selectedItem?.flag ? "pl-12" : "",
+                  inputClassName
+                )}
+              />
+            </div>
             {(isLoading) && (
               <div className="absolute right-2 top-1/2 -translate-y-1/2">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -154,15 +187,24 @@ export function Autocomplete({
                       key={item.value}
                       value={item.value}
                       onSelect={handleSelect}
-                      className="cursor-pointer"
+                      className="cursor-pointer flex items-center"
                     >
                       <Check
                         className={cn(
-                          "mr-2 h-4 w-4",
+                          "mr-2 h-4 w-4 flex-shrink-0",
                           selectedItem?.value === item.value ? "opacity-100" : "opacity-0"
                         )}
                       />
-                      {item.label}
+                      {item.countryCode && (
+                        <CountryFlag 
+                          countryCode={item.countryCode}
+                          label={item.countryName || item.label}
+                          className="mr-2 h-4 w-6 flex-shrink-0"
+                        />
+                      )}
+                      <span className="truncate">
+                        {item.label.replace(/^[^\w]*/, '')}
+                      </span>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -174,3 +216,15 @@ export function Autocomplete({
     </div>
   )
 }
+
+const CountryFlag = ({ countryCode, label, className = '' }: CountryFlagProps) => {
+  if (!countryCode) return null;
+  
+  const FlagComponent = flags[countryCode as keyof typeof flags];
+  
+  return (
+    <span className={cn("flex items-center justify-center overflow-hidden rounded-sm bg-foreground/20", className)}>
+      {FlagComponent && <FlagComponent title={label} />}
+    </span>
+  );
+};

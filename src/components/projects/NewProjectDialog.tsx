@@ -7,7 +7,7 @@ import { Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ProjectForm } from '@/components/forms/ProjectForm';
-import { addProject } from '@/services/projectService';
+import { createProject } from '@/services/projectService';
 import { addClient } from '@/services/clientService';
 import { useToast } from '@/hooks/use-toast';
 import { ModalLayout } from '@/components/modals/modalLayout';
@@ -58,10 +58,10 @@ export function NewProjectDialog() {
   };
 
   // Mutación para crear un nuevo proyecto
-  const addProjectMutation = useMutation({
+  const createProjectMutation = useMutation({
     mutationFn: (
       projectData: Omit<ProjectType, 'id' | 'createdAt' | 'updatedAt' | 'total' | 'balance'>
-    ) => addProject(projectData),
+    ) => createProject(projectData),
     onSuccess: (newProject) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast({
@@ -98,7 +98,7 @@ export function NewProjectDialog() {
           fullAddress: {
             textoCompleto: formData.fullAddress.textoCompleto || '',
             coordenadas: formData.fullAddress.coordenadas || { latitude: 0, longitude: 0 },
-            placeId: formData.fullAddress.placeId || undefined,
+            placeId: formData.fullAddress.placeId || '',
             ...(formData.fullAddress.componentes && {
               componentes: {
                 calle: formData.fullAddress.componentes.calle || undefined,
@@ -119,7 +119,7 @@ export function NewProjectDialog() {
       };
 
       // Crear el proyecto
-      await addProjectMutation.mutateAsync(projectData);
+      await createProjectMutation.mutateAsync(projectData);
     } catch (error) {
       console.error('Error al crear el proyecto:', error);
     }
@@ -143,24 +143,17 @@ export function NewProjectDialog() {
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         title="Nuevo Proyecto"
-        onSubmit={() => {
-          // Disparar manualmente el evento submit del formulario
-          formRef.current?.dispatchEvent(
-            new Event('submit', { cancelable: true, bubbles: true })
-          );
-        }}
-        submitButtonText="Crear Proyecto"
-        isSubmitting={addProjectMutation.isPending}
-        className="w-full max-w-3xl"
+        showDefaultButtons={false}
+        className="w-full max-w-md"
       >
         <div className="space-y-4 py-2">
           <ProjectForm
             formRef={formRef}
             onSubmit={handleFormSubmit}
-            isSubmitting={addProjectMutation.isPending}
+            isSubmitting={createProjectMutation.isPending}
             submitButtonText='Crear Proyecto'
             onClientAdd={handleAddClient}
-            hideButtons={true}
+            onCancel={() => setIsOpen(false)}
           />
         </div>
       </ModalLayout>

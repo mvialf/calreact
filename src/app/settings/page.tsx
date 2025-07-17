@@ -20,16 +20,16 @@ import {
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { addClient, type ClientImportData } from '@/services/clientService';
-import { addProject } from '@/services/projectService';
+import { createProject } from '@/services/projectService';
 import { addPayment } from '@/services/paymentService';
 import type { ProjectImportData } from '@/types/project';
 import type { PaymentImportData as PaymentImportDataType } from '@/types/payment';
 import { POSSIBLE_PAYMENT_METHODS, POSSIBLE_PAYMENT_TYPES } from '@/types/payment';
 import type { ProjectStatus } from '@/types/project';
 import { Loader2, HelpCircle } from 'lucide-react';
-import { useTheme } from "next-themes";
 import { FileDndInput } from '@/components/ui/file-dnd-input';
 import { CopyableCodeBlock } from '@/components/ui/copyable-code-block';
+import { GeneralSettings } from '@/components/settings/GeneralSettings';
 
 const clientJsonSchemaExample = `
 [
@@ -95,7 +95,6 @@ const paymentJsonSchemaExample = `
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { theme, setTheme } = useTheme();
   const [clientFile, setClientFile] = useState<File | null>(null);
   const [projectFile, setProjectFile] = useState<File | null>(null);
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
@@ -301,7 +300,7 @@ export default function SettingsPage() {
           }
         }
 
-        const projectDataPayload: ProjectImportData = {
+        const projectDataPayload: Omit<ProjectImportData, 'date'> & { date: Date } = {
           id: (currentProjTyped.id && typeof currentProjTyped.id === 'string') ? currentProjTyped.id.trim() : undefined,
           projectNumber: String(currentProjTyped.projectNumber).trim(),
           clientId: String(currentProjTyped.clientId).trim(),
@@ -327,7 +326,7 @@ export default function SettingsPage() {
         };
         
         try {
-            return await addProject(projectDataPayload);
+            return await createProject(projectDataPayload);
         } catch (serviceError: any) {
             throw new Error(`Error al guardar proyecto '${projectDataPayload.projectNumber || 'Desconocido'}': ${serviceError.message}`);
         }
@@ -532,35 +531,7 @@ export default function SettingsPage() {
           </TabsList>
 
           <TabsContent value="general" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Apariencia</CardTitle>
-                <CardDescription>Personaliza cómo se ve y se siente la aplicación.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-4 border rounded-lg">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="theme" className="text-base">Tema de la aplicación</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Selecciona tu tema preferido.
-                    </p>
-                  </div>
-                  <Select value={theme} onValueChange={setTheme}>
-                    <SelectTrigger className="w-full sm:w-[180px]" id="theme">
-                      <SelectValue placeholder="Seleccionar tema" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">Claro</SelectItem>
-                      <SelectItem value="dark">Oscuro</SelectItem>
-                      <SelectItem value="system">Sistema</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-            <div className="flex justify-end pt-4">
-                <Button onClick={() => toast({title: "Próximamente", description: "Guardar preferencias generales estará disponible pronto."})}>Guardar Cambios (General)</Button>
-            </div>
+            <GeneralSettings />
           </TabsContent>
 
           <TabsContent value="datos" className="space-y-6">

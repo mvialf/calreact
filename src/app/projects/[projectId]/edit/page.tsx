@@ -177,7 +177,7 @@ export default function EditProjectPage() {
               <FormSkeleton />
             ) : (
               <ProjectForm
-                defaultValues={project}
+                initialData={project}
                 onSubmit={handleFormSubmit}
                 isSubmitting={updateProjectMutation.isPending}
                 submitButtonText='Guardar Cambios'

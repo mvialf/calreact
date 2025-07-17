@@ -13,6 +13,7 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { getDoc } from 'firebase/firestore';
 import type { EventType } from '@/types/event';
 
 const EVENTS_COLLECTION = 'events';
@@ -27,7 +28,8 @@ const fromFirestore = (docSnap: QueryDocumentSnapshot<DocumentData>): EventType 
     endDate: (data.endDate as Timestamp).toDate(),
     description: data.description,
     color: data.color,
-    // userId: data.userId, // No es necesario exponerlo en el EventType del cliente usualmente
+    type: data.type, // Añadido
+    referenceId: data.referenceId, // Añadido
   };
 };
 
@@ -113,20 +115,11 @@ export const updateEvent = async (
 
     await updateDoc(eventDocRef, updatePayload);
 
-    // Para devolver el evento actualizado completo, necesitamos leerlo o fusionar
-    // Por ahora, asumimos que la actualización fue exitosa y devolvemos un objeto EventType construido
-    // Esto es una simplificación; idealmente, se leería el documento actualizado.
-    const updatedEvent: EventType = {
-        id: eventId,
-        name: eventData.name || '', // Asumir que el nombre no cambia o se proporciona
-        startDate: eventData.startDate ? new Date(eventData.startDate) : new Date(), // Placeholder
-        endDate: eventData.endDate ? new Date(eventData.endDate) : new Date(), // Placeholder
-        ...eventData, // Sobrescribe con los datos proporcionados
-    };
-     // Si se leyeran los datos del servidor:
-    // const updatedDoc = await getDoc(eventDocRef);
-    // return fromFirestore(updatedDoc as QueryDocumentSnapshot<DocumentData>);
-    return updatedEvent;
+    const updatedDoc = await getDoc(eventDocRef);
+    if (!updatedDoc.exists()) {
+      throw new Error("Updated event not found!");
+    }
+    return fromFirestore(updatedDoc as QueryDocumentSnapshot<DocumentData>);
 
   } catch (error) {
     console.error("Error updating event:", error);

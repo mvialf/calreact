@@ -45,6 +45,7 @@ const projectFromDoc = (docSnapshot: any): ProjectType => {
     fullAddress = {
       textoCompleto: data.address,
       coordenadas: { latitude: 0, longitude: 0 },
+      placeId: '', // Añadido
       componentes: {
         comuna: data.commune || '',
         region: data.region || '',
@@ -56,7 +57,7 @@ const projectFromDoc = (docSnapshot: any): ProjectType => {
   return {
     id: docSnapshot.id,
     ...data,
-    date: data.date.toDate(), // Should always exist
+    date: data.date && data.date.toDate ? data.date.toDate() : new Date(),
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(),
     isPaid: data.isPaid === undefined ? false : data.isPaid, // Default to false if not set
@@ -119,193 +120,78 @@ export const getProjectById = async (projectId: string): Promise<ProjectType | n
   return null;
 };
 
-export const addProject = async (projectData: ProjectImportData | Omit<ProjectType, 'id' | 'updatedAt' | 'total' | 'balance'>): Promise<ProjectType> => {
+export const createProject = async (projectData: Omit<ProjectType, 'id' | 'createdAt' | 'updatedAt' | 'total' | 'balance' | 'clientName'>): Promise<ProjectType> => {
   const projectsCollectionRef = collection(db, PROJECTS_COLLECTION);
-
-  let createdAtTimestamp: Timestamp;
-  // Verificar si createdAt existe en los datos antes de intentar acceder
-  if ('createdAt' in projectData && projectData.createdAt) {
-    try {
-      const date = typeof projectData.createdAt === 'string' ? new Date(projectData.createdAt) : projectData.createdAt;
-      if (date instanceof Date && isNaN(date.getTime())) {
-        console.warn(`Invalid createdAt date provided for project ${projectData.projectNumber}. Using server timestamp.`);
-        createdAtTimestamp = serverTimestamp() as Timestamp;
-      } else if (date instanceof Date) {
-        createdAtTimestamp = Timestamp.fromDate(date);
-      } else {
-        createdAtTimestamp = serverTimestamp() as Timestamp;
-      }
-    } catch (e) {
-      console.warn(`Error parsing createdAt date for project ${projectData.projectNumber}. Using server timestamp.`, e);
-      createdAtTimestamp = serverTimestamp() as Timestamp;
-    }
-  } else {
-    createdAtTimestamp = serverTimestamp() as Timestamp;
-  }
 
   const subtotal = Number(projectData.subtotal) || 0;
   const taxRate = Number(projectData.taxRate) || 0;
   const total = subtotal * (1 + taxRate / 100);
-  const balance = total; 
 
-  const { ...restOfProjectData } = projectData as any;
-
-
+  // Remove derived fields before saving
   const dataToSave: Omit<ProjectDocument, 'id'> = {
-    projectNumber: restOfProjectData.projectNumber,
-    clientId: restOfProjectData.clientId,
-    description: restOfProjectData.description || '',
-    date: restOfProjectData.date instanceof Date ? Timestamp.fromDate(restOfProjectData.date) : Timestamp.fromDate(new Date(restOfProjectData.date as string)),
-    subtotal: subtotal,
-    taxRate: taxRate,
-    total: total,
-    balance: balance,
-    status: restOfProjectData.status,
-    collect: restOfProjectData.collect === undefined ? false : restOfProjectData.collect, // Default to false
-    isPaid: restOfProjectData.isPaid === undefined ? false : restOfProjectData.isPaid, // Default to false
-    createdAt: createdAtTimestamp,
+    ...projectData,
+    date: Timestamp.fromDate(new Date(projectData.date)),
+    subtotal,
+    taxRate,
+    total,
+    balance: total,
+    isPaid: false,
+    createdAt: serverTimestamp() as Timestamp,
     updatedAt: serverTimestamp() as Timestamp,
-    phone: restOfProjectData.phone || '',
-    windowsCount: Number(restOfProjectData.windowsCount) || 0,
-    squareMeters: Number(restOfProjectData.squareMeters) || 0,
-    uninstall: restOfProjectData.uninstall || false,
-    uninstallTypes: Array.isArray(restOfProjectData.uninstallTypes) ? restOfProjectData.uninstallTypes : [],
-    uninstallOther: restOfProjectData.uninstallOther || '',
-    glosa: restOfProjectData.glosa || '',
-    isHidden: restOfProjectData.isHidden || false,
   };
 
-  // Manejar la dirección compleja y mantener compatibilidad con los campos legados
-  if (restOfProjectData.fullAddress) {
-    dataToSave.fullAddress = restOfProjectData.fullAddress;
-    // También actualizar los campos legados para compatibilidad con código anterior
-    dataToSave.address = restOfProjectData.fullAddress.textoCompleto || '';
-    dataToSave.commune = restOfProjectData.fullAddress.componentes?.comuna || '';
-    dataToSave.region = restOfProjectData.fullAddress.componentes?.region || 'RM';
-  } else {
-    // Si no hay fullAddress, usar los campos individuales (para compatibilidad)
-    dataToSave.address = restOfProjectData.address || '';
-    dataToSave.commune = restOfProjectData.commune || '';
-    dataToSave.region = restOfProjectData.region || 'RM';
+  // Handle address compatibility
+  if (projectData.fullAddress) {
+    dataToSave.address = projectData.fullAddress.textoCompleto || '';
+    dataToSave.commune = projectData.fullAddress.componentes?.comuna || '';
+    dataToSave.region = projectData.fullAddress.componentes?.region || 'RM';
   }
 
-  let docRef;
-  if ('id' in restOfProjectData && restOfProjectData.id) {
-    docRef = doc(db, PROJECTS_COLLECTION, restOfProjectData.id);
-    await setDoc(docRef, dataToSave);
-  } else {
-    docRef = await addDoc(projectsCollectionRef, dataToSave);
-  }
+  const docRef = await addDoc(projectsCollectionRef, dataToSave);
   const newDocSnap = await getDoc(docRef);
   return projectFromDoc(newDocSnap);
 };
 
 
-export const updateProject = async (projectId: string, projectData: Partial<Omit<ProjectType, 'id' | 'updatedAt'>>): Promise<void> => {
+export const updateProject = async (projectId: string, projectData: Partial<Omit<ProjectType, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> => {
   const projectDocRef = doc(db, PROJECTS_COLLECTION, projectId);
-  
-  const dataToUpdate: Partial<ProjectDocument> = {};
 
-  // Explicitly map fields to ensure correct types and only update what's provided
-  if (projectData.hasOwnProperty('projectNumber')) dataToUpdate.projectNumber = projectData.projectNumber;
-  if (projectData.hasOwnProperty('clientId')) dataToUpdate.clientId = projectData.clientId;
-  if (projectData.hasOwnProperty('description')) dataToUpdate.description = projectData.description;
-  
-  if (projectData.date) {
-     try {
-        // Ensure date is converted to Timestamp if it's not already one
-        if (
-          typeof projectData.date === 'object' && projectData.date instanceof Date || 
-          typeof projectData.date === 'string' || 
-          typeof projectData.date === 'number'
-        ) {
-            dataToUpdate.date = Timestamp.fromDate(new Date(projectData.date));
-        } else if (
-          typeof projectData.date === 'object' && 
-          'seconds' in projectData.date && 
-          'nanoseconds' in projectData.date
-        ) {
-            dataToUpdate.date = projectData.date as Timestamp; // It's likely a Timestamp
-        }
-    } catch (e) {
-        console.error("Invalid date format for project update:", projectData.date, e);
-        // Decide how to handle: skip date update, or throw error
-    }
+  const dataToUpdate: { [key: string]: any } = { ...projectData };
+
+  // Convert date to Timestamp if it's a Date object
+  if (dataToUpdate.date && dataToUpdate.date instanceof Date) {
+    dataToUpdate.date = Timestamp.fromDate(dataToUpdate.date);
   }
-  
-  if (projectData.hasOwnProperty('subtotal')) dataToUpdate.subtotal = Number(projectData.subtotal);
-  if (projectData.hasOwnProperty('taxRate')) dataToUpdate.taxRate = Number(projectData.taxRate);
-  
+
   // Recalculate total and balance if subtotal or taxRate changes
-  if (projectData.hasOwnProperty('subtotal') || projectData.hasOwnProperty('taxRate')) {
+  if (dataToUpdate.subtotal !== undefined || dataToUpdate.taxRate !== undefined) {
     const currentSnap = await getDoc(projectDocRef);
     const currentData = currentSnap.data() as ProjectDocument | undefined;
 
-    const subtotal = dataToUpdate.subtotal !== undefined ? dataToUpdate.subtotal : Number(currentData?.subtotal || 0);
-    const taxRate = dataToUpdate.taxRate !== undefined ? dataToUpdate.taxRate : Number(currentData?.taxRate || 0);
+    const subtotal = dataToUpdate.subtotal !== undefined ? Number(dataToUpdate.subtotal) : Number(currentData?.subtotal || 0);
+    const taxRate = dataToUpdate.taxRate !== undefined ? Number(dataToUpdate.taxRate) : Number(currentData?.taxRate || 0);
     
     dataToUpdate.total = subtotal * (1 + taxRate / 100);
-    // Adjust balance based on the new total and existing payments
-    if (currentData) {
-      const payments = await getPaymentsForProject(projectId);
-      const sumOfPayments = payments
-        .filter(p => !p.isAdjustment && typeof p.amount === 'number')
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const payments = await getPaymentsForProject(projectId);
+    const sumOfPayments = payments
+      .filter(p => !p.isAdjustment && typeof p.amount === 'number')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
       
-      dataToUpdate.balance = calculateProjectBalance(dataToUpdate.total, sumOfPayments);
-    } else {
-      dataToUpdate.balance = dataToUpdate.total; // Fallback si no hay datos actuales
-    }
-  }
-
-  if (projectData.hasOwnProperty('status')) dataToUpdate.status = projectData.status;
-  if (projectData.hasOwnProperty('phone')) dataToUpdate.phone = projectData.phone;
-  
-  // Manejar la dirección compleja
-  if (projectData.hasOwnProperty('fullAddress')) {
-    const fullAddress = projectData.fullAddress;
-    dataToUpdate.fullAddress = fullAddress;
-    
-    // Actualizar también los campos legados para mantener compatibilidad
-    if (fullAddress) {
-      dataToUpdate.address = fullAddress.textoCompleto || '';
-      dataToUpdate.commune = fullAddress.componentes?.comuna || '';
-      dataToUpdate.region = fullAddress.componentes?.region || 'RM';
-    }
-  } else {
-    // Si se actualizan los campos individuales, mantener compatibilidad
-    if (projectData.hasOwnProperty('address')) dataToUpdate.address = projectData.address;
-    if (projectData.hasOwnProperty('commune')) dataToUpdate.commune = projectData.commune;
-    if (projectData.hasOwnProperty('region')) dataToUpdate.region = projectData.region;
+    dataToUpdate.balance = calculateProjectBalance(dataToUpdate.total, sumOfPayments);
+    dataToUpdate.isPaid = dataToUpdate.balance <= 0;
   }
   
-  if (projectData.hasOwnProperty('windowsCount')) dataToUpdate.windowsCount = Number(projectData.windowsCount);
-  if (projectData.hasOwnProperty('squareMeters')) dataToUpdate.squareMeters = Number(projectData.squareMeters);
-  if (projectData.hasOwnProperty('uninstall')) dataToUpdate.uninstall = projectData.uninstall;
-  if (projectData.hasOwnProperty('uninstallTypes')) dataToUpdate.uninstallTypes = projectData.uninstallTypes;
-  if (projectData.hasOwnProperty('uninstallOther')) dataToUpdate.uninstallOther = projectData.uninstallOther;
-  if (projectData.hasOwnProperty('glosa')) dataToUpdate.glosa = projectData.glosa;
-  if (projectData.hasOwnProperty('collect')) dataToUpdate.collect = projectData.collect;
-  if (projectData.hasOwnProperty('isHidden')) dataToUpdate.isHidden = projectData.isHidden;
-  
-  // This is the key part for the switch functionality
-  if (projectData.hasOwnProperty('isPaid')) {
-    dataToUpdate.isPaid = projectData.isPaid;
+  // Handle address compatibility
+  if (dataToUpdate.fullAddress) {
+    dataToUpdate.address = dataToUpdate.fullAddress.textoCompleto || '';
+    dataToUpdate.commune = dataToUpdate.fullAddress.componentes?.comuna || '';
+    dataToUpdate.region = dataToUpdate.fullAddress.componentes?.region || 'RM';
   }
 
-  dataToUpdate.updatedAt = serverTimestamp() as Timestamp;
+  dataToUpdate.updatedAt = serverTimestamp();
 
-  // Only perform update if there are actual changes besides updatedAt
-  const fieldCountToUpdate = Object.keys(dataToUpdate).filter(k => k !== 'updatedAt').length;
-  if (fieldCountToUpdate > 0) {
-    await updateDoc(projectDocRef, dataToUpdate);
-  } else if (projectData.hasOwnProperty('updatedAt') && Object.keys(projectData).length === 1) {
-    // If only updatedAt was passed (e.g. to touch the doc), allow it.
-    // This case is unlikely for user-driven updates.
-    await updateDoc(projectDocRef, { updatedAt: serverTimestamp() as Timestamp });
-  }
-  // If no fields were provided in projectData (empty object), this will essentially just update 'updatedAt'.
-  // If projectData only contained 'isPaid', fieldCountToUpdate would be 1, and the update would proceed.
+  await updateDoc(projectDocRef, dataToUpdate);
 };
 
 /**

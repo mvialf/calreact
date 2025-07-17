@@ -134,7 +134,7 @@ export function ProjectModal({
           submitButtonText="Guardar"
           onClientAdd={handleAddClient}
           hideButtons={true}
-          defaultValues={mapToProjectFormValues(initialData || {})}
+          initialData={mapToProjectFormValues(initialData || {})}
         />
 
         {selectedProject && (

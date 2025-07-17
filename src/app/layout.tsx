@@ -26,6 +26,7 @@ import { Sidebar } from '@/components/ui/sidebar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Script from 'next/script';
 import { cn } from '@/lib/utils';
+import { AppConfigProvider } from '@/contexts/AppConfigContext';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -131,75 +132,77 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <HeaderNav />
-            <div className="flex h-screen">
-              <Sidebar>
-                <div className="flex flex-col h-full">
-                  <div className="p-4">
-                    <Link 
-                      href="/" 
-                      className="flex items-center gap-2" 
-                      title="CalReact Home"
-                    >
-                      <CalendarDays className="h-7 w-7 text-primary flex-shrink-0" />
-                      <h2 className="text-2xl font-bold text-primary">
-                        CalReact
-                      </h2>
-                    </Link>
+            <AppConfigProvider>
+              <HeaderNav />
+              <div className="flex h-screen">
+                <Sidebar>
+                  <div className="flex flex-col h-full">
+                    <div className="p-4">
+                      <Link 
+                        href="/" 
+                        className="flex items-center gap-2" 
+                        title="CalReact Home"
+                      >
+                        <CalendarDays className="h-7 w-7 text-primary flex-shrink-0" />
+                        <h2 className="text-2xl font-bold text-primary">
+                          CalReact
+                        </h2>
+                      </Link>
+                    </div>
+                    
+                    <nav className="flex-1 px-4">
+                      <ul className="space-y-2">
+                        {navItems.map((item) => {
+                          const isActive =
+                            pathname === item.href ||
+                            (item.href !== '/' && pathname?.startsWith(item.href)) ||
+                            (item.altPaths && item.altPaths.includes(pathname));
+                          
+                          return (
+                            <li key={item.href}>
+                              <Link
+                                href={item.href}
+                                className={cn(
+                                  'flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
+                                  isActive && 'bg-accent text-accent-foreground'
+                                )}
+                              >
+                                <item.icon className="h-5 w-5" />
+                                <span>{item.label}</span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </nav>
+                    
+                    <div className="p-4 mt-auto">
+                      <p className="text-xs text-muted-foreground">
+                        &copy; 2025 CalReact App
+                      </p>
+                    </div>
                   </div>
-                  
-                  <nav className="flex-1 px-4">
-                    <ul className="space-y-2">
-                      {navItems.map((item) => {
-                        const isActive =
-                          pathname === item.href ||
-                          (item.href !== '/' && pathname?.startsWith(item.href)) ||
-                          (item.altPaths && item.altPaths.includes(pathname));
-                        
-                        return (
-                          <li key={item.href}>
-                            <Link
-                              href={item.href}
-                              className={cn(
-                                'flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
-                                isActive && 'bg-accent text-accent-foreground'
-                              )}
-                            >
-                              <item.icon className="h-5 w-5" />
-                              <span>{item.label}</span>
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </nav>
-                  
-                  <div className="p-4 mt-auto">
-                    <p className="text-xs text-muted-foreground">
-                      © 2025 CalReact App
-                    </p>
+                </Sidebar>
+                
+                <main className="flex-1 lg:pl-64">
+                  <div className="p-4 sm:p-6 lg:p-8 h-full overflow-y-auto lg:mt-16">
+                    {children}
                   </div>
-                </div>
-              </Sidebar>
-              
-              <main className="flex-1 lg:pl-64">
-                <div className="p-4 sm:p-6 lg:p-8 h-full overflow-y-auto lg:mt-16">
-                  {children}
-                </div>
-              </main>
-            </div>
-            <Toaster />
-            <Script
-              src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMaps`}
-              strategy="beforeInteractive"
-            />
-            <Script id="google-maps-init">
-              {`
-                window.initGoogleMaps = function() {
-                  window.googleMapsLoaded = true;
-                };
-              `}
-            </Script>
+                </main>
+              </div>
+              <Toaster />
+              <Script
+                src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMaps`}
+                strategy="beforeInteractive"
+              />
+              <Script id="google-maps-init">
+                {`
+                  window.initGoogleMaps = function() {
+                    window.googleMapsLoaded = true;
+                  };
+                `}
+              </Script>
+            </AppConfigProvider>
           </ThemeProvider>
         </QueryClientProvider>
       </body>

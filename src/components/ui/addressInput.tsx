@@ -206,7 +206,7 @@ export function AddressInput({
                 latitude: place.geometry?.location?.lat() || 0,
                 longitude: place.geometry?.location?.lng() || 0,
               },
-              placeId: place.place_id,
+              placeId: place.place_id || '',
               componentes: {
                 calle: addressComponents.route,
                 numero: addressComponents.streetNumber,
