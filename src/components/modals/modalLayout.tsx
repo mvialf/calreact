@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 
@@ -79,6 +80,9 @@ export function ModalLayout({
       <DialogContent className={cn("p-0 gap-0 w-full", className)}>
         <DialogHeader className="bg-background px-6 py-4 border-b">
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Formulario modal para {title.toLowerCase()}
+          </DialogDescription>
         </DialogHeader>
         
         {/* Contenido con scroll */}

@@ -1,6 +1,6 @@
 import React from 'react';
-import Link from 'next/link';
 import { ProjectType } from '@/types/project';
+import { EditProjectDialog } from '@/components/modals/projects/EditProjectDialog';
 
 // Props para el componente de ítem de proyecto en el dashboard
 interface DashboardProjectItemProps {
@@ -10,7 +10,7 @@ interface DashboardProjectItemProps {
   line1TextMain: string;
   line1TextSecondary?: string;
   line2Text: string;
-  href: string;
+
 }
 
 /**
@@ -24,7 +24,6 @@ export const DashboardProjectItem: React.FC<DashboardProjectItemProps> = ({
   line1TextMain,
   line1TextSecondary,
   line2Text,
-  href,
 }) => {
   return (
     <div className="flex items-center border-b border-border/60 pb-3 pt-2 last:border-0 last:pb-0 hover:bg-muted/50 rounded-md px-1 -mx-1 transition-colors">
@@ -35,9 +34,11 @@ export const DashboardProjectItem: React.FC<DashboardProjectItemProps> = ({
       </div>
       <div className="flex-1 overflow-hidden">
         <h4 className="font-medium truncate">
-          <Link href={href} className="hover:underline">
-            {line1TextMain}
-          </Link>
+          <EditProjectDialog project={project}>
+            <button className="hover:underline text-left">
+              {line1TextMain}
+            </button>
+          </EditProjectDialog>
           {line1TextSecondary && <span className="text-muted-foreground"> - {line1TextSecondary}</span>}
         </h4>
         <p className="text-xs text-muted-foreground">

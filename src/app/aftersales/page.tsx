@@ -37,7 +37,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PlusCircle, GanttChartSquare, Wrench, Trash2, Eye } from 'lucide-react';
+import { GanttChartSquare, Wrench, Trash2, Eye } from 'lucide-react';
+import { NewAfterSaleDialog, EditAfterSaleDialog } from '@/components/modals/afterSales';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -178,10 +179,7 @@ export default function AfterSalesPage() {
           
           <h2 className="text-3xl font-bold tracking-tight">Postventas</h2>
         </div>
-        <Button onClick={() => router.push('/aftersales/new')}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Nueva Postventa
-        </Button>
+        <NewAfterSaleDialog />
       </div>
       
       <div className="mt-4">
@@ -248,9 +246,11 @@ export default function AfterSalesPage() {
                             <DropdownMenuItem onClick={() => handleDetailsClick(afterSale)}>
                               <Eye className="mr-2 h-4 w-4" /> Ver detalles
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => router.push(`/aftersales/${afterSale.id}/edit`)}>
-                              <Wrench className="mr-2 h-4 w-4" /> Editar
-                            </DropdownMenuItem>
+                            <EditAfterSaleDialog afterSale={afterSale}>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <Wrench className="mr-2 h-4 w-4" /> Editar
+                              </DropdownMenuItem>
+                            </EditAfterSaleDialog>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleDeleteClick(afterSale)} className="text-destructive">
                               <Trash2 className="mr-2 h-4 w-4" /> Eliminar

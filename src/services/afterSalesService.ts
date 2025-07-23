@@ -114,6 +114,14 @@ export const addAfterSales = async (afterSalesData: Omit<AfterSales, 'id' | 'cre
       dataToSave.notes = afterSalesData.notes;
     }
 
+    if (afterSalesData.phone) {
+      dataToSave.phone = afterSalesData.phone;
+    }
+
+    if (afterSalesData.address) {
+      dataToSave.address = afterSalesData.address;
+    }
+
     // Mapear tareas si existen
     if (afterSalesData.tasks && afterSalesData.tasks.length > 0) {
       dataToSave.tasks = afterSalesData.tasks.map(task => ({

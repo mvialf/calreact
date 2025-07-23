@@ -139,7 +139,6 @@ const RecentProjects = ({ projects, loading }: { projects: ProjectType[]; loadin
               line1TextMain={project.projectNumber}
               line1TextSecondary={project.glosa || ''}
               line2Text={`${new Date(project.date).toLocaleDateString()} - ${formatCurrency(project.total)}`}
-              href={`/projects/${project.id}/edit`}
             />
           ))}
         </div>
@@ -185,7 +184,6 @@ const ProjectsToCollectList = ({ projects, loading }: { projects: ProjectType[];
               line1TextMain={project.projectNumber}
               line1TextSecondary={project.clientName || ''}
               line2Text={`Saldo Pendiente: ${formatCurrency(project.balance)}`}
-              href={`/projects/${project.id}/edit`}
             />
           ))}
         </div>

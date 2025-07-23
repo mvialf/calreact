@@ -5,7 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription, // Import DialogDescription
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -70,7 +70,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSave, clie
         <DialogHeader>
           <DialogTitle>{clientData ? 'Editar Cliente' : 'Nuevo Cliente'}</DialogTitle>
           <DialogDescription>
-            {clientData ? 'Modifica los datos del cliente.' : 'Ingresa los datos para un nuevo cliente.'}
+            {clientData ? 'Modifica la información del cliente existente.' : 'Completa los campos para agregar un nuevo cliente.'}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

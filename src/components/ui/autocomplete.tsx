@@ -47,6 +47,7 @@ interface AutocompleteProps {
   className?: string
   inputClassName?: string
   popoverClassName?: string
+  renderItem?: (item: AutocompleteItem) => React.ReactNode
 }
 
 export function Autocomplete({
@@ -62,6 +63,7 @@ export function Autocomplete({
   className = "",
   inputClassName = "",
   popoverClassName = "",
+  renderItem,
 }: AutocompleteProps) {
   const [inputValue, setInputValue] = React.useState("")
   const [open, setOpen] = React.useState(false)
@@ -195,16 +197,22 @@ export function Autocomplete({
                           selectedItem?.value === item.value ? "opacity-100" : "opacity-0"
                         )}
                       />
-                      {item.countryCode && (
-                        <CountryFlag 
-                          countryCode={item.countryCode}
-                          label={item.countryName || item.label}
-                          className="mr-2 h-4 w-6 flex-shrink-0"
-                        />
+                      {renderItem ? (
+                        renderItem(item)
+                      ) : (
+                        <>
+                          {item.countryCode && (
+                            <CountryFlag 
+                              countryCode={item.countryCode}
+                              label={item.countryName || item.label}
+                              className="mr-2 h-4 w-6 flex-shrink-0"
+                            />
+                          )}
+                          <span className="truncate">
+                            {item.label.replace(/^[^\w]*/, '')}
+                          </span>
+                        </>
                       )}
-                      <span className="truncate">
-                        {item.label.replace(/^[^\w]*/, '')}
-                      </span>
                     </CommandItem>
                   ))}
                 </CommandGroup>

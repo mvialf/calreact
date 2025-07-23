@@ -29,6 +29,9 @@ import {
 // Importar tipos necesarios
 import type { FormattedAddress } from "@/types/project"
 
+// ✅ SOLUCIÓN: Mover libraries fuera del componente para evitar recargas
+const GOOGLE_MAPS_LIBRARIES: ('places')[] = ['places'];
+
 // Extender la interfaz global de Window para incluir google
 declare global {
   interface Window {
@@ -91,10 +94,10 @@ export function AddressInput({
   const [selectedAddress, setSelectedAddress] = React.useState<FormattedAddress | null>(value || null);
   const [additionalInfo, setAdditionalInfo] = React.useState(value?.informacionAdicional || "");
 
-  // Cargar la API de Google Maps
-  const { isLoaded } = useLoadScript({
+  // ✅ SOLUCIÓN: Usar la constante libraries para evitar recargas
+  const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: ["places"],
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   // Manejar cuando el input se borra
@@ -125,41 +128,58 @@ export function AddressInput({
     }
   };
   
-  // Actualizar additionalInfo cuando cambia el valor inicial
+  // Actualizar el estado interno cuando cambia el valor
   React.useEffect(() => {
-    setAdditionalInfo(value?.informacionAdicional || "");
-  }, [value?.informacionAdicional]);
+    if (value) {
+      setSelectedAddress(value);
+      setInputValue(value.textoCompleto || '');
+    } else if (value === null) {
+      // Solo limpiar si se pasa explícitamente null
+      setSelectedAddress(null);
+      setInputValue('');
+      setAdditionalInfo('');
+    }
+    // No hacer nada si value es undefined (carga inicial)
+  }, [value]);
 
   // Estado para las sugerencias de direcciones
   const autocompleteService = React.useRef<google.maps.places.AutocompleteService | null>(null);
   const placesService = React.useRef<google.maps.places.PlacesService | null>(null);
 
-  // Inicializar servicios de Google Places
+  // ✅ SOLUCIÓN: Inicializar servicios con validaciones defensivas
   React.useEffect(() => {
-    if (isLoaded && window.google) {
-      autocompleteService.current = new window.google.maps.places.AutocompleteService();
-      placesService.current = new window.google.maps.places.PlacesService(
-        document.createElement('div')
-      );
+    if (isLoaded && window.google && window.google.maps && window.google.maps.places) {
+      try {
+        autocompleteService.current = new window.google.maps.places.AutocompleteService();
+        placesService.current = new window.google.maps.places.PlacesService(
+          document.createElement('div')
+        );
+      } catch (error) {
+        console.warn('Error al inicializar servicios de Google Maps:', error);
+      }
     }
   }, [isLoaded]);
 
-  // Buscar sugerencias de direcciones
+  // ✅ SOLUCIÓN: Buscar sugerencias con validaciones mejoradas
   const searchAddresses = React.useCallback(async (query: string) => {
-    if (!autocompleteService.current) return;
+    if (!autocompleteService.current || !query.trim()) {
+      setSuggestions([]);
+      return;
+    }
 
     try {
       const request = {
-        input: query,
+        input: query.trim(),
         componentRestrictions: { country: 'cl' },
         types: ['address'],
       };
 
       const results = await new Promise<GooglePlacePrediction[]>((resolve) => {
         autocompleteService.current?.getPlacePredictions(request, (predictions, status) => {
-          if (status === 'OK' && predictions) {
+          if (status === window.google?.maps?.places?.PlacesServiceStatus?.OK && predictions) {
             resolve(predictions);
           } else {
+            console.warn('Error en búsqueda de direcciones:', status);
             resolve([]);
           }
         });
@@ -172,11 +192,11 @@ export function AddressInput({
     }
   }, []);
 
-  // Manejar la selección de un lugar
+  // ✅ SOLUCIÓN: Manejo mejorado de selección de lugar con validaciones
   const handlePlaceSelect = React.useCallback(
     async (placeId: string) => {
-      if (!window.google || !window.google.maps || !window.google.maps.places) {
-        console.error("Google Maps API no está disponible");
+      if (!window.google || !window.google.maps || !window.google.maps.places || !placeId) {
+        console.error("Google Maps API no está disponible o placeId inválido");
         return;
       }
 
@@ -188,47 +208,51 @@ export function AddressInput({
         );
 
         placesService.getDetails(
-          { placeId, fields: ["address_components", "formatted_address", "geometry"] },
+          { placeId, fields: ["address_components", "formatted_address", "geometry", "place_id"] },
           (place, status) => {
+            setIsLoading(false);
+            
             if (status !== window.google.maps.places.PlacesServiceStatus.OK || !place) {
               console.error("Error al obtener detalles del lugar:", status);
-              setIsLoading(false);
               return;
             }
 
-            // Extraer componentes de la dirección
-            const addressComponents = extractAddressComponents(place);
+            try {
+              // Extraer componentes de la dirección con validación
+              const addressComponents = extractAddressComponents(place);
 
-            // Formatear la dirección completa según el tipo FormattedAddress
-            const formattedAddress: FormattedAddress = {
-              textoCompleto: place.formatted_address || "",
-              coordenadas: {
-                latitude: place.geometry?.location?.lat() || 0,
-                longitude: place.geometry?.location?.lng() || 0,
-              },
-              placeId: place.place_id || '',
-              componentes: {
-                calle: addressComponents.route,
-                numero: addressComponents.streetNumber,
-                comuna: addressComponents.locality,
-                ciudad: addressComponents.locality,
-                region: addressComponents.administrativeArea,
-                pais: addressComponents.country,
-                codigoPostal: addressComponents.postalCode,
-              },
-              detalle: place.formatted_address,
-            };
+              // Formatear la dirección completa según el tipo FormattedAddress
+              const formattedAddress: FormattedAddress = {
+                textoCompleto: place.formatted_address || "",
+                coordenadas: {
+                  latitude: place.geometry?.location?.lat() || 0,
+                  longitude: place.geometry?.location?.lng() || 0,
+                },
+                placeId: place.place_id || placeId,
+                componentes: {
+                  calle: addressComponents?.route || '',
+                  numero: addressComponents?.streetNumber || '',
+                  comuna: addressComponents?.locality || '',
+                  ciudad: addressComponents?.locality || '',
+                  region: addressComponents?.administrativeArea || '',
+                  pais: addressComponents?.country || 'Chile',
+                  codigoPostal: addressComponents?.postalCode || '',
+                },
+                detalle: place.formatted_address || '',
+              };
 
-            // Actualizar el estado
-            setSelectedAddress(formattedAddress);
-            setInputValue(formattedAddress.textoCompleto);
-            setSuggestions([]);
-            setIsOpen(false);
-            setIsLoading(false);
+              // Actualizar el estado
+              setSelectedAddress(formattedAddress);
+              setInputValue(formattedAddress.textoCompleto);
+              setSuggestions([]);
+              setIsOpen(false);
 
-            // Llamar a los callbacks
-            onSelect?.(formattedAddress);
-            onPlaceSelected?.(formattedAddress);
+              // Llamar a los callbacks
+              onSelect?.(formattedAddress);
+              onPlaceSelected?.(formattedAddress);
+            } catch (addressError) {
+              console.error("Error al procesar la dirección:", addressError);
+            }
           }
         );
       } catch (error) {
@@ -240,11 +264,22 @@ export function AddressInput({
   );
 
   const handleClear = React.useCallback(() => {
+    console.log('Limpiando dirección...');
     setSelectedAddress(null);
     setInputValue("");
     setSuggestions([]);
-    onSelect?.(null);
-    onPlaceSelected?.(null);
+    setAdditionalInfo(""); // Limpiar también la información adicional
+    
+    // Notificar a los componentes padres que la dirección se ha limpiado
+    if (onSelect) {
+      console.log('Llamando a onSelect con null');
+      onSelect(null);
+    }
+    
+    if (onPlaceSelected) {
+      console.log('Llamando a onPlaceSelected con null');
+      onPlaceSelected(null);
+    }
   }, [onSelect, onPlaceSelected]);
 
   // Manejar la acción de copiar la dirección al portapapeles
@@ -375,6 +410,40 @@ export function AddressInput({
       inputRef.current.focus();
     }
   };
+
+  // ✅ SOLUCIÓN: Manejo de errores DESPUÉS de todos los hooks
+  if (loadError) {
+    console.error('Error al cargar Google Maps:', loadError);
+    return (
+      <div className={cn("w-full", className)}>
+        <Input
+          type="text"
+          placeholder={placeholder}
+          className={cn("w-full", inputClassName)}
+          disabled={true}
+          value="Error: No se pudo cargar Google Maps"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Verifica tu conexión a internet y la configuración de la API de Google Maps
+        </p>
+      </div>
+    );
+  }
+
+  // Mostrar loading mientras se carga Google Maps
+  if (!isLoaded) {
+    return (
+      <div className={cn("w-full", className)}>
+        <Input
+          type="text"
+          placeholder="Cargando Google Maps..."
+          className={cn("w-full", inputClassName)}
+          disabled={true}
+          value={inputValue}
+        />
+      </div>
+    );
+  }
 
   // Renderizar el componente de búsqueda de direcciones
   if (selectedAddress) {

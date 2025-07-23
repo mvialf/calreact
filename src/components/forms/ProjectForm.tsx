@@ -11,14 +11,11 @@ import { es } from 'date-fns/locale';
 import { formatDateForInput } from '@/utils/date-helpers';
 import { useToast } from '@/components/ui/use-toast';
 
-// Tipos y constantes locales
-type ProjectStatus =
-  | 'ingresado'
-  | 'en_proceso'
-  | 'completado'
-  | 'facturado'
-  | 'pagado'
-  | 'cancelado';
+// Imports de tipos y constantes correctos
+import type { ProjectStatus } from '@/types/project';
+import { PROJECT_STATUS_OPTIONS, UNINSTALL_TYPE_OPTIONS } from '@/constants/project';
+
+// Tipos locales (sin duplicar ProjectStatus)
 type UninstallType = 'retiro_cristales' | 'retiro_marco' | 'retiro_completo' | 'otro';
 
 interface LocalClient {
@@ -94,7 +91,6 @@ import {
 
 // Servicios y tipos
 import { getClients as fetchClientsFromService } from '@/services/clientService';
-import { UNINSTALL_TYPE_OPTIONS, PROJECT_STATUS_OPTIONS } from '@/lib/constants';
 import { FormattedAddress } from '@/types/project'; // Importar el tipo FormattedAddress
 
 // Esquema para la dirección
@@ -174,10 +170,17 @@ export const projectFormSchema = z
       z.number().min(0).optional().default(0)
     ),
     phone: z.string().optional().refine(value => {
-      if (!value) return true; // Allow empty value
-      // Simple regex for E.164 format
-      return /^\+[1-9]\d{1,14}$/.test(value);
-    }, 'Número de teléfono inválido.'),
+      if (!value || value.trim() === '') return true; // Allow empty value
+      
+      // Limpiar el valor de espacios y caracteres especiales excepto +
+      const cleanValue = value.replace(/[^+\d]/g, '');
+      
+      // Validar formato E.164 (con código de país) o formato local chileno
+      const e164Format = /^\+[1-9]\d{1,14}$/.test(cleanValue);
+      const localChileanFormat = /^[89]\d{8}$/.test(cleanValue); // 9 dígitos empezando con 8 o 9
+      
+      return e164Format || localChileanFormat;
+    }, 'Número de teléfono inválido. Use formato +56912345678 o 912345678.'),
     fullAddress: addressSchema.optional(),
     description: z.string().optional(),
     uninstall: z.boolean().default(false),
@@ -247,19 +250,7 @@ export function ProjectForm({
       description: '',
       uninstall: false,
       uninstallTypes: [],
-      fullAddress: {
-        textoCompleto: '',
-        coordenadas: { latitude: 0, longitude: 0 },
-        componentes: {
-          calle: '',
-          numero: '',
-          comuna: '',
-          ciudad: '',
-          region: '',
-          pais: 'Chile',
-          codigoPostal: '',
-        },
-      },
+      fullAddress: undefined,
       ...initialData,
     },
   });
@@ -391,6 +382,12 @@ export function ProjectForm({
                     <FormControl>
                       <PhoneInput {...field} />
                     </FormControl>
+<<<<<<< Updated upstream
+=======
+                    <p className='text-xs text-muted-foreground'>
+                      Formato: +56912345678 o 912345678
+                    </p>
+>>>>>>> Stashed changes
                   </FormItem>
                 )}
               />
@@ -518,8 +515,38 @@ export function ProjectForm({
                   <FormLabel>Dirección *</FormLabel>
                   <FormControl>
                     <AddressInput
+<<<<<<< Updated upstream
                       value={field.value && field.value.placeId ? field.value : null}
                       onPlaceSelected={(address) => field.onChange(address)}
+=======
+                      value={field.value ?? null}
+                      onSelect={(address) => {
+                        if (!address) {
+                          field.onChange(null);
+                          return;
+                        }
+                        
+                        // Asegurar que la dirección tenga la estructura completa
+                        const completeAddress = {
+                          ...address,
+                          placeId: address.placeId || '',
+                          textoCompleto: address.textoCompleto || '',
+                          coordenadas: address.coordenadas || { latitude: 0, longitude: 0 },
+                          componentes: {
+                            ...(address.componentes || {}),
+                            calle: address.componentes?.calle || '',
+                            numero: address.componentes?.numero || '',
+                            comuna: address.componentes?.comuna || '',
+                            ciudad: address.componentes?.ciudad || '',
+                            region: address.componentes?.region || '',
+                            pais: address.componentes?.pais || 'Chile',
+                            codigoPostal: address.componentes?.codigoPostal || ''
+                          }
+                        };
+                        
+                        field.onChange(completeAddress);
+                      }}
+>>>>>>> Stashed changes
                       placeholder='Buscar por calle, comuna o ciudad...'
                       className='w-full'
                     />

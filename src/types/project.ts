@@ -1,5 +1,6 @@
 // src/types/project.ts
 import type { Timestamp } from 'firebase/firestore';
+import type { ProjectStatusConstant } from '@/constants/project';
 
 // Tipo para las coordenadas geográficas
 export interface GeoCoordinates {
@@ -28,13 +29,7 @@ export interface FormattedAddress {
   informacionAdicional?: string; // Para información adicional como número de departamento, block, etc.
 }
 
-export type ProjectStatus =
-  | 'ingresado'
-  | 'en progreso'
-  | 'completado'
-  | 'cancelado'
-  | 'pendiente aprobación'
-  | string;
+export type ProjectStatus = ProjectStatusConstant;
 
 export interface ProjectType {
   id: string;

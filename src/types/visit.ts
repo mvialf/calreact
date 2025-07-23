@@ -18,6 +18,29 @@ export interface Visit {
   address: string;
   municipality: string;
   observations?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  scheduledDate?: Date | string;
+  placeId?: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  fullAddress?: {
+    textoCompleto: string;
+    placeId: string;
+    coordenadas: {
+      latitude: number;
+      longitude: number;
+    };
+    componentes: {
+      calle: string;
+      numero: string;
+      comuna: string;
+      ciudad: string;
+      region: string;
+      pais: string;
+      codigoPostal: string;
+    };
+  };
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }

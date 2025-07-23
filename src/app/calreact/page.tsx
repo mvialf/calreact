@@ -55,7 +55,7 @@ export default function CalReactAppPage() {
   const [currentDate, setCurrentDate] = useState<Date | undefined>(undefined); // Se inicializará en useEffect
   const [isClient, setIsClient] = useState(false);
   const [events, setEvents] = useState<EventType[]>([]);
-  const [currentView, setCurrentView] = useState<ViewOption>('month');
+  const [currentView, setCurrentView] = useState<ViewOption>('week');
   const [filterTerm, setFilterTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<EventType | Partial<Omit<EventType, 'id'>> | null>(null);

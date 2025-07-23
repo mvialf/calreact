@@ -1,7 +1,8 @@
 // src/components/account-statement-dialog.tsx
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent,
+  DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Copy, CircleDollarSign, Wallet, FileText } from 'lucide-react';
 import { getPaymentsForProject } from '@/services/paymentService';
@@ -146,6 +147,9 @@ Saldo Pendiente: ${formatCurrency(pendingBalance)}
             <DialogTitle className='text-xl font-bold whitespace-nowrap'>
               ESTADO DE CUENTA
             </DialogTitle>
+          <DialogDescription className="sr-only">
+            Diálogo de la aplicación
+          </DialogDescription>
             <div className='text-sm text-gray-700 font-medium text-right'>
               {formatDate(new Date(), 'dd/MM/yyyy', { locale: es })}
             </div>

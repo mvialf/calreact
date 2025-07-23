@@ -72,6 +72,21 @@ export const getVisits = async (): Promise<Visit[]> => {
 };
 
 /**
+ * Actualiza una visita existente en Firestore
+ */
+export const updateVisit = async (visitId: string, visitData: Partial<Omit<Visit, 'id' | 'createdAt'>>): Promise<void> => {
+  try {
+    await updateDoc(doc(db, VISITS_COLLECTION, visitId), {
+      ...visitData,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error al actualizar la visita:', error);
+    throw new Error('No se pudo actualizar la visita');
+  }
+};
+
+/**
  * Elimina una visita de Firestore
  */
 export const deleteVisit = async (visitId: string): Promise<void> => {

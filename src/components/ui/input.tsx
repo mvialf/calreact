@@ -30,8 +30,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          "flex h-8 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          suffix ? 'pr-1' : '',
+          "flex h-10 w-full rounded-md border border-input bg-background px-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          suffix ? 'pr-0' : '',
           className
         )}
         ref={ref}
@@ -44,11 +44,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     // Si hay un suffix, envolver el input en un contenedor
     const inputWithSuffix = suffix ? (
       <div className={cn(
-        "flex items-center h-8 rounded-md border border-input bg-background ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+        "flex items-center h-10 rounded-md border border-input bg-background ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
         props.disabled && "opacity-50"
       )}>
         {inputElement}
-        <span className="px-3 py-2 text-muted-foreground">{suffix}</span>
+        <span className="pr-0.5 py-2 text-muted-foreground">{suffix}</span>
       </div>
     ) : inputElement
 

@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DatePicker } from '@/components/ui/date-picker';
+import { InputDate } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -429,7 +429,7 @@ export function EventModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-3">
                 <Label className="text-sm font-medium">Fecha de Inicio</Label>
-                <DatePicker
+                <InputDate
                   date={startDate}
                   onSelect={setStartDate}
                   calendarProps={{
@@ -440,7 +440,7 @@ export function EventModal({
               </div>
               <div className="grid gap-3">
                 <Label className="text-sm font-medium">Fecha de Fin</Label>
-                <DatePicker
+                <InputDate
                   date={endDate}
                   onSelect={setEndDate}
                   calendarProps={{

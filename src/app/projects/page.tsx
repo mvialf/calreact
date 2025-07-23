@@ -31,8 +31,8 @@ import TablePagination from '@/components/table/table-pagination';
 import { PaymentDialog } from '@/components/payment-dialog';
 import AccountStatementDialog from '@/components/account-statement-dialog';
 import { ProjectClientDisplay } from '@/components/client-display';
-import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
-import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
+import { NewProjectDialog } from '@/components/modals/projects/NewProjectDialog';
+import { EditProjectDialog } from '@/components/modals/projects/EditProjectDialog';
 import type { PaymentMethod } from '@/types/payment';
 
 // Iconos
@@ -65,6 +65,7 @@ const ProjectsPage: React.FC = () => {
   const [projectToDelete, setProjectToDelete] = useState<EnrichedProject | null>(null);
   const [isAccountStatementOpen, setIsAccountStatementOpen] = useState(false);
   const [selectedProjectForAccountStatement, setSelectedProjectForAccountStatement] = useState<EnrichedProject | null>(null);
+  const [projectToEdit, setProjectToEdit] = useState<EnrichedProject | null>(null);
 
   // --- MUTATIONS ---
   const updateProjectMutation = useMutation({
@@ -164,13 +165,35 @@ const ProjectsPage: React.FC = () => {
     updateStatusMutation.mutate({ projectId, status });
   };
 
+  // Función para abrir el diálogo de edición
+  const handleOpenEditDialog = (project: EnrichedProject) => {
+    setProjectToEdit(project);
+  };
+
+  // Efecto para abrir automáticamente el diálogo cuando projectToEdit cambie
+  React.useEffect(() => {
+    if (projectToEdit) {
+      // Usar setTimeout para asegurar que el DOM esté actualizado
+      const timer = setTimeout(() => {
+        const editButton = document.querySelector(`[data-edit-trigger="${projectToEdit.id}"]`) as HTMLButtonElement;
+        if (editButton) {
+          editButton.click();
+        }
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [projectToEdit]);
+
   // --- DATOS FILTRADOS Y ORDENADOS ---
   const filteredProjects = useMemo(() => {
     let projects = enrichedProjects || [];
 
     if (hideCompletedAndPaid) {
       // Oculta proyectos que están completados Y cuyo saldo es 0 o menor (pagados)
-     }
+      projects = projects.filter(project => 
+        !(project.status === 'completado' && project.isPaid === true)
+      );
+    }
 
     if (filter) {
       const lowercasedFilter = filter.toLowerCase();
@@ -344,9 +367,12 @@ const ProjectsPage: React.FC = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                                                    <EditProjectDialog project={project}>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}><SquarePen className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-                          </EditProjectDialog>
+                          <DropdownMenuItem onSelect={(e) => {
+                            e.preventDefault();
+                            handleOpenEditDialog(project);
+                          }}>
+                            <SquarePen className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => handleOpenPaymentDialog(project)}><DollarSign className="mr-2 h-4 w-4" /> Registrar Pago</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => handleOpenAccountStatementDialog(project)}><FileText className="mr-2 h-4 w-4" /> Estado de Cuenta</DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -403,6 +429,19 @@ const ProjectsPage: React.FC = () => {
             `${selectedProjectForAccountStatement.clientName || 'Cliente no encontrado'}${selectedProjectForAccountStatement.glosa?.trim() ? ` - ${selectedProjectForAccountStatement.glosa}` : ''}`
           }
         />
+      )}
+
+      {/* Diálogo de Edición de Proyecto */}
+      {projectToEdit && (
+        <EditProjectDialog project={projectToEdit}>
+          <button 
+            data-edit-trigger={projectToEdit.id}
+            style={{ display: 'none' }}
+            aria-hidden="true"
+          >
+            Hidden Edit Trigger
+          </button>
+        </EditProjectDialog>
       )}
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

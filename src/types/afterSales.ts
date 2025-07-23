@@ -23,6 +23,8 @@ export interface AfterSales {
   afterSalesStatus?: AfterSalesStatus;
   assignedTo?: string; // User/technician assigned
   notes?: string; // Internal notes
+  phone?: string; // Contact phone number
+  address?: any; // FormattedAddress from Google Places API
 }
 
 // Helper type for Firestore document structure

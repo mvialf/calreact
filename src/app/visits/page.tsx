@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/use-toast';
-import Link from 'next/link';
-import { Plus, Eye, Edit, Phone, MapPin, Clock, GanttChartSquare, MoreHorizontal, Trash2, Search, Filter, Loader2 } from 'lucide-react';
+import { Eye, Edit, Phone, MapPin, Clock, GanttChartSquare, MoreHorizontal, Trash2, Search, Filter, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -36,6 +35,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Visit, getVisits, deleteVisit, VisitStatus } from '@/services/visitService';
+import { NewVisitDialog, EditVisitDialog } from '@/components/modals/visits';
 
 const getStatusVariant = (status: VisitStatus) => {
   switch (status) {
@@ -63,6 +63,7 @@ export default function VisitsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
 
   // Cargar visitas desde Firestore
   useEffect(() => {
@@ -93,9 +94,20 @@ export default function VisitsPage() {
     router.push(`/visits/${visitId}`);
   };
 
-  const handleEdit = (visitId?: string) => {
-    if (!visitId) return;
-    router.push(`/visits/${visitId}/edit`);
+  const handleEdit = (visit: Visit) => {
+    setEditingVisit(visit);
+  };
+
+  const handleEditSuccess = () => {
+    // Forzar recarga de las visitas después de editar
+    getVisits().then(visitsData => {
+      setVisits(visitsData);
+      setEditingVisit(null);
+      toast({
+        title: 'Visita actualizada',
+        description: 'La visita se ha actualizado correctamente.',
+      });
+    });
   };
 
   const handleDelete = (visit: Visit) => {
@@ -150,7 +162,7 @@ export default function VisitsPage() {
   });
 
   const formatDate = (date: Date) => {
-    return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
+    return format(date, 'dd/MM/yyyy', { locale: es });
   };
 
   // Mostrar mensaje de carga
@@ -177,10 +189,7 @@ export default function VisitsPage() {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground mb-4">No hay visitas registradas</p>
-        <Button onClick={() => router.push('/visits/new')}>
-          <Plus className="mr-2 h-4 w-4" />
-          Agregar Visita
-        </Button>
+        <NewVisitDialog />
       </div>
     );
   }
@@ -194,12 +203,7 @@ export default function VisitsPage() {
             Gestiona las visitas de clientes a tus proyectos
           </p>
         </div>
-        <Link href="/visits/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva Visita
-          </Button>
-        </Link>
+        <NewVisitDialog />
       </div>
 
       <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
@@ -243,7 +247,7 @@ export default function VisitsPage() {
                 <TableHead>
                   <div className="flex items-center">
                     <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
-                    <span>Fecha de Visita</span>
+                    <span>Fecha Programada</span>
                   </div>
                 </TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -289,10 +293,15 @@ export default function VisitsPage() {
                             <Eye className="mr-2 h-4 w-4" />
                             <span>Ver detalles</span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEdit(visit.id)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            <span>Editar</span>
-                          </DropdownMenuItem>
+                          <EditVisitDialog 
+                            visit={visit}
+                            onSuccess={handleEditSuccess}
+                          >
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              <span>Editar</span>
+                            </DropdownMenuItem>
+                          </EditVisitDialog>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-red-600 focus:text-red-600"

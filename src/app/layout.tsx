@@ -27,6 +27,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Script from 'next/script';
 import { cn } from '@/lib/utils';
 import { AppConfigProvider } from '@/contexts/AppConfigContext';
+import { GlobalErrorBoundary } from '@/components/error-boundary/GlobalErrorBoundary';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -59,7 +60,7 @@ const navItems = [
     label: 'Proyectos' 
   },
   { 
-    href: '/calendar', 
+    href: '/calreact', 
     icon: CalendarDays, 
     label: 'Calendario' 
   },
@@ -125,14 +126,24 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <AppConfigProvider>
+        <GlobalErrorBoundary
+          onError={(error, errorInfo, errorId) => {
+            console.error(`🚨 Error global capturado (${errorId}):`, error, errorInfo);
+            
+            // Aquí podrías enviar el error a un servicio de logging como Sentry
+            // if (process.env.NODE_ENV === 'production') {
+            //   Sentry.captureException(error, { extra: { errorInfo, errorId } });
+            // }
+          }}
+        >
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <AppConfigProvider>
               <HeaderNav />
               <div className="flex h-screen">
                 <Sidebar>
@@ -202,9 +213,10 @@ export default function RootLayout({
                   };
                 `}
               </Script>
-            </AppConfigProvider>
-          </ThemeProvider>
-        </QueryClientProvider>
+              </AppConfigProvider>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </GlobalErrorBoundary>
       </body>
     </html>
   );

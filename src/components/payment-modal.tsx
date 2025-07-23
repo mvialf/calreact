@@ -95,6 +95,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSave, pr
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Registrar Pago de Proyecto</DialogTitle>
+          <DialogDescription>
+            Registra un nuevo pago para este proyecto.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSave}>
           <div className="grid gap-4 pb-4 pt-0">
