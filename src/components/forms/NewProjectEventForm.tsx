@@ -9,13 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { AddressInput } from '@/components/ui/addressInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 // Imports de tipos y constantes
 import type { ProjectStatus } from '@/types/project';
-import { PROJECT_STATUS_OPTIONS } from '@/constants/project';
+import { PROJECT_STATUS_OPTIONS, UNINSTALL_TYPE_OPTIONS } from '@/constants/project';
 import { DEFAULT_WINDOWS_COUNT, DEFAULT_SQUARE_METERS } from '@/constants/defaults';
 import type { FormattedAddress } from '@/types/project';
 
@@ -28,9 +30,8 @@ const formSchema = z.object({
   status: z.string().min(1, "El estado es requerido"),
   windowsCount: z.number().min(0, "El número de ventanas debe ser positivo"),
   squareMeters: z.number().min(0, "Los metros cuadrados deben ser positivos"),
-  uninstall: z.boolean(),
-  uninstallTypes: z.array(z.string()).optional(),
-  uninstallOther: z.string().optional(),
+  uninstall: z.boolean().default(false),
+  uninstallTypes: z.array(z.string()).optional().default([]),
 });
 
 // Tipo para los valores del formulario
@@ -74,12 +75,15 @@ export function NewProjectEventForm({
       windowsCount: Number(initialData?.windowsCount) || DEFAULT_WINDOWS_COUNT || 0,
       squareMeters: Number(initialData?.squareMeters) || DEFAULT_SQUARE_METERS || 0,
       uninstall: Boolean(initialData?.uninstall) || false,
-      uninstallTypes: Array.isArray(initialData?.uninstallTypes) ? initialData.uninstallTypes : undefined,
-      uninstallOther: initialData?.uninstallOther || "",
+      uninstallTypes: Array.isArray(initialData?.uninstallTypes) ? initialData.uninstallTypes : [],
       checklist: Array.isArray(initialData?.checklist) ? initialData.checklist : [],
     },
   });
 
+
+  // Observar cambios en desinstalación
+  const watchUninstall = form.watch('uninstall');
+  const watchUninstallTypes = form.watch('uninstallTypes') || [];
 
   // Manejar el envío del formulario
   const handleFormSubmit = (data: NewProjectEventFormValues) => {
@@ -97,39 +101,18 @@ export function NewProjectEventForm({
 
 
 
-
+      <div className="grid grid-cols-2 gap-4">
         {/* Teléfono */}
         <FormField
           control={form.control}
           name="phone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Teléfono de Contacto</FormLabel>
+              <FormLabel>Teléfono</FormLabel>
               <FormControl>
                 <PhoneInput
                   {...field}
-                  placeholder="Teléfono de contacto"
                   onChange={(value) => field.onChange(value)}
-                  disabled={disabled}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Dirección */}
-        <FormField
-          control={form.control}
-          name="fullAddress"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Dirección</FormLabel>
-              <FormControl>
-                <AddressInput
-                  value={field.value}
-                  onSelect={field.onChange}
-                  placeholder="Ingrese la dirección del proyecto"
                   disabled={disabled}
                 />
               </FormControl>
@@ -163,15 +146,38 @@ export function NewProjectEventForm({
             </FormItem>
           )}
         />
+      </div>  
+
+        {/* Dirección */}
+        <FormField
+          control={form.control}
+          name="fullAddress"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Dirección</FormLabel>
+              <FormControl>
+                <AddressInput
+                  value={field.value}
+                  onSelect={field.onChange}
+                  placeholder="Ingrese la dirección del proyecto"
+                  disabled={disabled}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+
 
         {/* Ventanas y Metros Cuadrados */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <FormField
             control={form.control}
             name="windowsCount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cantidad de Ventanas</FormLabel>
+                <FormLabel>N° de Ventanas</FormLabel>
                 <FormControl>
                   <Input
                     value={field.value?.toString() || '0'}
@@ -179,7 +185,7 @@ export function NewProjectEventForm({
                     min="0"
                     disabled={disabled}
                     onChange={(e) => {
-                      const value = parseInt(e.target.value);
+                      const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                       field.onChange(isNaN(value) ? 0 : value);
                     }}
                   />
@@ -194,7 +200,7 @@ export function NewProjectEventForm({
             name="squareMeters"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Metros Cuadrados</FormLabel>
+                <FormLabel>M2</FormLabel>
                 <FormControl>
                   <Input
                     value={field.value?.toString() || '0'}
@@ -203,7 +209,7 @@ export function NewProjectEventForm({
                     step="0.1"
                     disabled={disabled}
                     onChange={(e) => {
-                      const value = parseFloat(e.target.value);
+                      const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
                       field.onChange(isNaN(value) ? 0 : value);
                     }}
                   />
@@ -212,56 +218,54 @@ export function NewProjectEventForm({
               </FormItem>
             )}
           />
-        </div>
-
-        {/* Desinstalación */}
-        <div className="space-y-4">
-          <FormField
-            control={form.control}
-            name="uninstall"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Requiere desinstalación</FormLabel>
-                <FormControl>
-                  <Select 
-                    value={field.value ? "true" : "false"} 
-                    onValueChange={(value) => field.onChange(value === "true")}
-                    disabled={disabled}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="false">No</SelectItem>
-                      <SelectItem value="true">Sí</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {form.watch('uninstall') && (
+          
+          {/* Desinstalación */}
+          <div className="space-y-4">
             <FormField
               control={form.control}
-              name="uninstallOther"
+              name="uninstall"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Detalles de desinstalación</FormLabel>
+                <FormItem className="flex items-center space-x-2 space-y-0">
                   <FormControl>
-                    <Textarea
-                      {...field}
-                      value={field.value || ""}
-                      placeholder="Especificar tipo y detalles de desinstalación necesaria"
-                      rows={3}
+                    <Checkbox 
+                      checked={field.value} 
+                      onCheckedChange={field.onChange}
                       disabled={disabled}
                     />
                   </FormControl>
+                  <FormLabel className="!mt-0">Desinstalación</FormLabel>
                   <FormMessage />
                 </FormItem>
               )}
             />
+          
+        </div>
+
+
+          {watchUninstall && (
+            <div className="pl-6 space-y-2">
+              <Label>Tipos de desinstalación</Label>
+              <div className="flex flex-wrap gap-2">
+                {UNINSTALL_TYPE_OPTIONS.map((type) => (
+                  <div key={type} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`uninstall-${type}`}
+                      checked={watchUninstallTypes.includes(type)}
+                      disabled={disabled}
+                      onCheckedChange={(checked) => {
+                        const newTypes = checked 
+                          ? [...watchUninstallTypes, type] 
+                          : watchUninstallTypes.filter((t) => t !== type);
+                        form.setValue('uninstallTypes', newTypes);
+                      }}
+                    />
+                    <Label htmlFor={`uninstall-${type}`} className="font-normal">
+                      {type}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
