@@ -382,12 +382,9 @@ export function ProjectForm({
                     <FormControl>
                       <PhoneInput {...field} />
                     </FormControl>
-<<<<<<< Updated upstream
-=======
                     <p className='text-xs text-muted-foreground'>
                       Formato: +56912345678 o 912345678
                     </p>
->>>>>>> Stashed changes
                   </FormItem>
                 )}
               />
@@ -515,10 +512,6 @@ export function ProjectForm({
                   <FormLabel>Dirección *</FormLabel>
                   <FormControl>
                     <AddressInput
-<<<<<<< Updated upstream
-                      value={field.value && field.value.placeId ? field.value : null}
-                      onPlaceSelected={(address) => field.onChange(address)}
-=======
                       value={field.value ?? null}
                       onSelect={(address) => {
                         if (!address) {
@@ -546,7 +539,6 @@ export function ProjectForm({
                         
                         field.onChange(completeAddress);
                       }}
->>>>>>> Stashed changes
                       placeholder='Buscar por calle, comuna o ciudad...'
                       className='w-full'
                     />
