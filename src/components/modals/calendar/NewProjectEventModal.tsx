@@ -100,9 +100,6 @@ export function NewProjectEventModal({
     if (project) {
       const updatedFormData: Partial<NewProjectEventFormValues> = {
         projectId: project.id,
-        projectNumber: project.projectNumber,
-        clientId: project.clientId,
-        glosa: project.glosa || '',
         description: project.description || '',
         phone: project.phone || '',
         fullAddress: project.fullAddress || null,
