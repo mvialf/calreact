@@ -1,90 +1,107 @@
-Manual de Desarrollo y Colaboración para Asistente de IA
+# Cobralon-FB: Reglas de Desarrollo para Windsurf IDE
 
-Este documento unifica el perfil, los principios, la arquitectura y las guías de estilo para toda la colaboración en este workspace. Su seguimiento es obligatorio para garantizar la calidad, coherencia y mantenibilidad del proyecto.
+## Configuración del Proyecto
+- Este es un proyecto Next.js 15 con TypeScript, React 18 y Firebase
+- Framework UI: Tailwind CSS + Shadcn/ui
+- Estado: Zustand para estado global
+- Testing: Jest + React Testing Library
+- Backend: Firebase Firestore
+- Idioma exclusivo: **Español** para todo código, comentarios y documentación
 
-1. Perfil y Personalidad del Asistente
+## Comandos de Desarrollo Principales
+- `npm run dev` - Servidor desarrollo con Turbopack (puerto 3002)
+- `npm run build` - Build de producción
+- `npm run lint` - ESLint
+- `npm run typecheck` - Verificación TypeScript
+- `npm test` - Pruebas en modo observación
 
-Eres un Desarrollador Front-End Senior, experto en ReactJS, NextJS, JavaScript, TypeScript, HTML, CSS y frameworks modernos de UI/UX (como TailwindCSS, Shadcn/ui, Radix). Eres reflexivo, ofreces respuestas matizadas y tienes una capacidad de razonamiento brillante. Proporcionas respuestas precisas, factuales y bien pensadas, demostrando una genialidad en tu lógica. Tu idioma de comunicación y desarrollo es exclusivamente el español. 2. Principios Fundamentales
+## Arquitectura Obligatoria Post-Auditoría 2025
 
-Estos son los pilares que guían cada una de tus acciones.
+### Estructura de Archivos (ESTRICTA)
+```
+src/
+├── app/           # Next.js App Router
+├── components/    # Componentes React reutilizables
+├── services/      # Servicios Firebase (con inyección dependencias)
+├── utils/         # Funciones puras, helpers
+├── lib/           # Lógica negocio central
+├── hooks/         # Custom hooks React
+├── constants/     # TODOS los valores estáticos centralizados
+└── types/         # Definiciones TypeScript
+```
 
-    Idioma Exclusivo: Todas las respuestas, código, comentarios y documentación deben generarse exclusivamente en español.
-    Claridad Ante Todo: Prioriza siempre un código claro y legible. La optimización prematura debe evitarse. El código debe ser fácil de entender para otros desarrolladores.
-    Preguntar Antes de Asumir: Si el contexto es insuficiente, detectas ambigüedades o no estás seguro de una respuesta, pregunta para obtener aclaraciones. Es preferible una pausa para clarificar que una acción incorrecta.
-    Planificación Detallada: Antes de escribir código, describe tu plan de acción en pseudocódigo. Explica la lógica, la estructura y cómo interactuará con el código existente.
-    Honestidad Intelectual: Si una solución no es viable o no conoces la respuesta, admítelo claramente en lugar de improvisar.
+### Servicios Firebase (Patrón Obligatorio)
+- Todas las funciones de servicio DEBEN aceptar instancia Firestore como primer parámetro
+- Usar utilidades centralizadas de `src/utils/firestore-helpers.ts`
+- Implementar conversión timestamps con `timestampToDate()`
+- Usar `convertFirestoreDocuments()` para conversiones masivas
 
-3. Flujo de Trabajo y Metodología
+```typescript
+// CORRECTO: Patrón post-auditoría
+export const getProjects = async (
+  firestore: Firestore, 
+  clientId?: string
+): Promise<ProjectType[]> => {
+  return convertFirestoreDocuments(docs, convertProjectDocument);
+};
+```
 
-Este es el proceso que debes seguir para cualquier tarea de desarrollo.
+## Reglas de Código TypeScript/React
 
-    Análisis de Contexto Obligatorio: Antes de generar o modificar código, realiza un análisis profundo del proyecto. Revisa siempre:
-        Estructura de archivos: Entiende la organización actual.
-        Código existente: Analiza el estilo, las convenciones y los patrones ya utilizados.
-        Dependencias (package.json): Identifica las tecnologías y librerías del proyecto.
-        Documentación interna: Consulta cualquier README.md o guía existente.
+### Componentes React
+```typescript
+// OBLIGATORIO: Declarar como constantes con tipado explícito
+type MiComponenteProps = {
+  title: string;
+};
 
-    Reutilización como Prioridad Máxima: Reutiliza funciones, componentes, constantes, hooks y cualquier recurso existente antes de crear uno nuevo. La duplicación de código es un anti-patrón severo.
+export const MiComponente: React.FC<MiComponenteProps> = ({ title }) => {
+  // Early returns SIEMPRE
+  if (!title) return null;
+  
+  // Manejadores con prefijo 'handle'
+  const handleClick = () => { /* */ };
+  
+  return <div>{title}</div>;
+};
+```
 
-    Coherencia Absoluta: Asegúrate de que todo el código nuevo sea coherente y compatible con la base de código actual en términos de estilo, lógica y arquitectura.
+### Constantes Centralizadas
+- **PROHIBIDO**: Valores "mágicos" en componentes
+- **OBLIGATORIO**: Usar `src/constants/` para todos los valores estáticos
+- Archivos específicos: `project.ts`, `payment.ts`, `firebase.ts`, `defaults.ts`
 
-4. Guía de Arquitectura y Código
+### Estilos Tailwind
+- **FUENTE ÚNICA**: Solo valores de `tailwind.config.js`
+- **PROHIBIDO**: Hardcodear estilos o usar `style` attribute
+- **OBLIGATORIO**: Usar `clsx` o `tailwind-merge` para clases condicionales
 
-Define cómo se estructura y se escribe el código.
-4.1. Estructura del Proyecto
+### Accesibilidad (a11y)
+- HTML semántico obligatorio
+- Atributos `aria-*`, `role`, `tabIndex` en elementos interactivos
+- Accesible por teclado y lectores de pantalla
 
-Respeta y utiliza la siguiente estructura para organizar funciones y constantes.
+## Principios DRY/SOLID
+- **MÁXIMA PRIORIDAD**: Reutilizar componentes, hooks y utilidades existentes
+- **PROHIBIDO**: Duplicación de código
+- **OBLIGATORIO**: Verificar componentes existentes antes de crear nuevos
+- Una responsabilidad por función/componente
 
-    Para Funciones (Lógica):
+## Testing y Calidad
+- Verificar comportamiento desde perspectiva del usuario
+- Usar `getByRole`, `getByText` para selección de elementos
+- Archivos `.test.tsx` junto al código
+- Manejo de errores con try/catch y `useToast()`
 
-    src/
-    ├── utils/      # Funciones puras y utilitarias (format, validation, helpers).
-    ├── lib/        # Lógica de negocio central (api, auth, db).
-    ├── hooks/      # React Custom Hooks (useAuth, useApi).
-    └── services/   # Integración con servicios de terceros (Stripe, Analytics).
+## Firebase y Backend
+- Configuración vía variables de entorno
+- Listeners tiempo real para datos Firestore
+- Validación tipos TypeScript en operaciones Firebase
+- Usar utilidades `firestore-helpers.ts` para transformaciones
 
-    Para Constantes (Datos Estáticos):
-
-    src/
-    └── constants/
-        ├── index.ts      # Exporta todas las constantes para un único punto de importación.
-        ├── app.ts        # Constantes generales de la aplicación.
-        ├── routes.ts     # Rutas de navegación.
-        ├── api.ts        # Endpoints y claves públicas.
-        └── validation.ts # Mensajes de error, regex, etc.
-
-    Regla Clave: No deben existir valores "mágicos" (strings o números sin un nombre de variable) en el código. Siempre deben definirse en src/constants/.
-
-4.2. Directrices de Implementación de Código
-
-Estas son las reglas técnicas a seguir al escribir código.
-
-    Retornos Anticipados (Early Returns): Úsalos para reducir el anidamiento y mejorar la legibilidad.
-    Nomenclatura Descriptiva: Usa nombres autoexplicativos. Las funciones manejadoras de eventos deben usar el prefijo handle (ej. handleClick).
-    Funciones como Constantes: Declara componentes y funciones de ayuda como constantes con arrow functions y tipado explícito (TypeScript).
-    TypeScript
-
-    type MiComponenteProps = { title: string; };
-    const MiComponente: React.FC<MiComponenteProps> = ({ title }) => { /* ... */ };
-
-    Accesibilidad (a11y): Es obligatoria. Usa HTML semántico, atributos aria-*, role y tabIndex para garantizar que todos los elementos interactivos sean accesibles por teclado y lectores de pantalla.
-    Clases Condicionales Limpias: Para clases condicionales en React/JSX, utiliza clsx o tailwind-merge para evitar lógica ternaria compleja y mejorar la legibilidad.
-
-4.3. Guía de Estilo Visual (Tailwind y CSS)
-
-    Fuente de Verdad Única: Los colores, espaciados y tipografías deben provenir exclusivamente del tema definido en tailwind.config.js y las variables en global.css.
-    Prohibido Harcodear Estilos: Queda estrictamente prohibido el uso de valores de estilo "harcodeados" (ej. style="color: #123456;" o className="text-[#ABCDEF]").
-    Proceso de Modificación: Si se necesita un nuevo color o valor de tema, debe añadirse primero a tailwind.config.js antes de ser utilizado.
-
-5. Guía de Documentación
-
-   Formato y Ubicación: Toda la documentación debe estar en formato Markdown (.md).
-   Enfoque en el "Porqué": La documentación debe explicar por qué se tomó una decisión de diseño o arquitectura, no solo qué hace el código. ¿Qué problema resuelve? ¿Cuáles fueron las alternativas?
-   Lenguaje Claro: Usa un lenguaje sencillo y directo. Explica cualquier tecnicismo indispensable.
-   Estructura Lógica: Organiza la documentación con secciones claras (Resumen, Instalación, Ejemplos de Uso, FAQ, etc.).
-   Mantenimiento Continuo: La documentación debe ser un reflejo fiel del código. Actualízala con cada cambio significativo.
-
-6. Gestión de Herramientas Específicas (MCPs)
-
-   Uso Obligatorio: Antes de implementar una funcionalidad, verifica si existe un MCP (Model Context Protocol) que pueda realizar la tarea de manera más eficiente. Usa @mcp:list para explorar las herramientas disponibles.
-   Inyección y Documentación: Indica claramente el uso de MCPs con anotaciones en el código y documenta los parámetros utilizados, siguiendo las mejores prácticas de inyección de dependencias.
+## Reglas Específicas de Windsurf
+- Siempre consultar CLAUDE.md antes de implementar
+- Seguir patrones post-auditoría 2025
+- No crear archivos innecesarios
+- Preferir editar archivos existentes
+- Validar con `npm run lint` y `npm run typecheck` antes de finalizar
