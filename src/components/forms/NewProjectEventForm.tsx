@@ -4,9 +4,6 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useQuery } from '@tanstack/react-query';
-
-import { getClients } from '@/services/clientService';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,9 +22,6 @@ import type { FormattedAddress } from '@/types/project';
 // Esquema de validación para el formulario de evento de proyecto
 const formSchema = z.object({
   projectId: z.string().optional(),
-  projectNumber: z.string().optional(),
-  clientId: z.string().optional(),
-  glosa: z.string().optional(),
   description: z.string().optional(),
   phone: z.string().optional(),
   fullAddress: z.any().optional(), // FormattedAddress | null
@@ -73,9 +67,6 @@ export function NewProjectEventForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       projectId: initialData?.projectId || "",
-      projectNumber: initialData?.projectNumber || "",
-      clientId: initialData?.clientId || "",
-      glosa: initialData?.glosa || "",
       description: initialData?.description || "",
       phone: initialData?.phone || "",
       fullAddress: initialData?.fullAddress || null,
@@ -89,11 +80,6 @@ export function NewProjectEventForm({
     },
   });
 
-  // Obtener la lista de clientes
-  const { data: clients = [], isLoading: isLoadingClients } = useQuery({
-    queryKey: ['clients'],
-    queryFn: () => getClients(),
-  });
 
   // Manejar el envío del formulario
   const handleFormSubmit = (data: NewProjectEventFormValues) => {
@@ -107,75 +93,8 @@ export function NewProjectEventForm({
         onSubmit={form.handleSubmit(handleFormSubmit)} 
         className="space-y-6"
       >
-        {/* Número de Proyecto - Solo mostrar si no está deshabilitado */}
-        {!disabled && (
-          <FormField
-            control={form.control}
-            name="projectNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Número de Proyecto</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="Ej: P2024-001"
-                    disabled={disabled}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
 
-        {/* Cliente - Solo mostrar si no está deshabilitado */}
-        {!disabled && (
-          <FormField
-            control={form.control}
-            name="clientId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cliente</FormLabel>
-                <FormControl>
-                  <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
 
-        {/* Glosa - Solo mostrar si no está deshabilitado */}
-        {!disabled && (
-          <FormField
-            control={form.control}
-            name="glosa"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Glosa</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="Descripción breve del proyecto"
-                    disabled={disabled}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
 
 
 

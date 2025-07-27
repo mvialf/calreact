@@ -143,9 +143,9 @@ export function NewProjectEventModal({
       }}
       submitButtonText={isSubmitting ? 'Guardando...' : 'Crear Evento'}
       isSubmitting={isSubmitting || isLoadingProjects}
-      className="w-full max-w-4xl"
+      className="w-full max-w-xl"
     >
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Autocomplete de Proyectos */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Proyecto</Label>
