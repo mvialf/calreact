@@ -5,8 +5,19 @@
       "WebFetch(domain:docs.windsurf.com)",
       "Bash(git commit:*)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(npx:*)"
     ],
     "deny": []
+  },
+  "mcpServers": {
+    "firebase": {
+      "command": "npx",
+      "args": ["-y", "firebase-tools@latest", "experimental:mcp"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
   }
 }
