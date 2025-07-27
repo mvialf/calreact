@@ -31,8 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { EventType } from '@/types/event';
 import { useToast } from '@/hooks/use-toast';
-import { enrichEventTitle } from '@/ai/flows/enrich-event-title';
-import { Wand2, Trash2, Save, Loader2, RefreshCw } from 'lucide-react';
+import { Trash2, Save, Loader2, RefreshCw } from 'lucide-react';
 import { startOfDay, endOfDay, format } from '@/lib/calendar-utils';
 import { getReferencesByType, type ReferenceItem } from '@/services/eventReferenceService';
 // Importar el componente ProjectModal
@@ -221,35 +220,6 @@ export function EventModal({
     }
   };
 
-  const handleEnrichTitle = async () => {
-    if (!name.trim()) {
-      toast({ title: "No se puede Enriquecer", description: "Por favor, introduce un título primero.", variant: "destructive" });
-      return;
-    }
-    if (!startDate) {
-      toast({ title: "Error", description: "La fecha de inicio no está definida.", variant: "destructive" });
-      return;
-    }
-    startTransition(async () => {
-      try {
-        const taskStartDate = startOfDay(startDate);
-        const result = await enrichEventTitle({
-          title: name,
-          description: description,
-          startDate: taskStartDate,
-        });
-        if (result.enrichedTitle) {
-          setName(result.enrichedTitle);
-          toast({ title: "¡Título Enriquecido!", description: "La IA ha sugerido un nuevo título." });
-        } else {
-          toast({ title: "Fallo al Enriquecer", description: "No se pudo enriquecer el título.", variant: "destructive" });
-        }
-      } catch (error) {
-        console.error("Error enriching title:", error);
-        toast({ title: "Error", description: "Fallo al enriquecer el título debido a un error.", variant: "destructive" });
-      }
-    });
-  };
 
   const handleCloseDialog = (open: boolean) => {
     if (!open) {
@@ -338,9 +308,6 @@ export function EventModal({
                   className="flex-grow"
                   required
                 />
-                <Button type="button" variant="outline" size="icon" onClick={handleEnrichTitle} disabled={isPending || !name.trim()} aria-label="Enriquecer Título con IA">
-                  {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                </Button>
               </div>
             </div>
 

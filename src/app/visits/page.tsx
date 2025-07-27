@@ -277,7 +277,7 @@ export default function VisitsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center">
-                        {formatDate(visit.scheduledDate)}
+                        {formatDate(new Date(visit.scheduledDate))}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">

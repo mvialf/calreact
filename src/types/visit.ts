@@ -15,30 +15,30 @@ export interface Visit {
   name: string;
   phone: string;
   status: VisitStatus;
-  address: string;
-  municipality: string;
+  address?: string;
+  municipality?: string;
   observations?: string;
-  scheduledDate?: Date | string;
+  scheduledDate: Date | string;
   placeId?: string;
   coordinates?: {
     latitude: number;
     longitude: number;
   };
   fullAddress?: {
-    textoCompleto: string;
-    placeId: string;
-    coordenadas: {
+    textoCompleto?: string;
+    placeId?: string;
+    coordenadas?: {
       latitude: number;
       longitude: number;
     };
-    componentes: {
-      calle: string;
-      numero: string;
-      comuna: string;
-      ciudad: string;
-      region: string;
-      pais: string;
-      codigoPostal: string;
+    componentes?: {
+      calle?: string;
+      numero?: string;
+      comuna?: string;
+      ciudad?: string;
+      region?: string;
+      pais?: string;
+      codigoPostal?: string;
     };
   };
   createdAt?: Date | string;

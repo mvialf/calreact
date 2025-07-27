@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import * as React from 'react';
+import React, { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ProjectForm, ProjectFormValues } from '@/components/forms/ProjectForm';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { updateProject } from '@/services/projectService';
-import type { ProjectType } from '@/types/project';
+import type { ProjectType, ProjectStatus } from '@/types/project';
 import { ModalLayout } from '@/components/modals/modalLayout';
 import { DialogErrorBoundary } from '@/components/error-boundary/DialogErrorBoundary';
+import { DEFAULT_TAX_RATE } from '@/constants/defaults';
 
 interface EditProjectDialogProps {
   project: ProjectType;
@@ -31,7 +31,12 @@ export function EditProjectDialog({ project, children }: EditProjectDialogProps)
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: ProjectFormValues) => {
       try {
-        return await updateProject(project.id, data);
+        // Cast del status al tipo correcto
+        const projectData = {
+          ...data,
+          status: data.status as ProjectStatus
+        };
+        return await updateProject(project.id, projectData);
       } catch (error) {
         console.error('Error en mutationFn:', error);
         throw error;
@@ -85,7 +90,7 @@ export function EditProjectDialog({ project, children }: EditProjectDialogProps)
         date: project?.date ? new Date(project.date) : new Date(),
         status: project?.status ?? 'ingresado',
         subtotal: Number(project?.subtotal) || 0,
-        taxRate: Number(project?.taxRate) || 19,
+        taxRate: Number(project?.taxRate) || DEFAULT_TAX_RATE,
         windowsCount: Number(project?.windowsCount) || 0,
         squareMeters: Number(project?.squareMeters) || 0,
         phone: project?.phone ?? '',
@@ -119,7 +124,7 @@ export function EditProjectDialog({ project, children }: EditProjectDialogProps)
         date: new Date(),
         status: 'ingresado' as const,
         subtotal: 0,
-        taxRate: 19,
+        taxRate: DEFAULT_TAX_RATE,
         windowsCount: 0,
         squareMeters: 0,
         phone: '',

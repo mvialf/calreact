@@ -56,6 +56,10 @@ export interface ModalLayoutProps {
    * Si es false, permite que el contenido de la modal maneje sus propios botones
    */
   showDefaultButtons?: boolean;
+  /**
+   * Referencia al formulario para trigger de submit
+   */
+  formRef?: React.RefObject<HTMLFormElement>;
 }
 
 /**
@@ -74,6 +78,7 @@ export function ModalLayout({
   className,
   disabled = false,
   showDefaultButtons = true,
+  formRef,
 }: ModalLayoutProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -96,7 +101,13 @@ export function ModalLayout({
               Cancelar
             </Button>
             <Button
-              onClick={onSubmit}
+              onClick={() => {
+                if (formRef?.current) {
+                  formRef.current.requestSubmit();
+                } else if (onSubmit) {
+                  onSubmit();
+                }
+              }}
               disabled={disabled || isSubmitting}
             >
               {isSubmitting ? (

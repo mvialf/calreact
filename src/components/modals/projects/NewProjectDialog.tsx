@@ -11,7 +11,7 @@ import { createProject } from '@/services/projectService';
 import { addClient } from '@/services/clientService';
 import { useToast } from '@/hooks/use-toast';
 import { ModalLayout } from '@/components/modals/modalLayout';
-import type { ProjectType } from '@/types/project';
+import type { ProjectType, ProjectStatus } from '@/types/project';
 import type { ProjectFormValues } from '@/components/forms/ProjectForm';
 
 export function NewProjectDialog() {
@@ -91,6 +91,7 @@ export function NewProjectDialog() {
       // Preparar los datos para la creación
       const projectData: Omit<ProjectType, 'id' | 'createdAt' | 'updatedAt' | 'total' | 'balance'> = {
         ...formData,
+        status: formData.status as ProjectStatus,
         subtotal,
         taxRate,
         uninstallTypes: formData.uninstallTypes || [],

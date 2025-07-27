@@ -11,11 +11,13 @@ import {
   Timestamp,
   serverTimestamp,
   getDoc,
-  setDoc
+  setDoc,
+  DocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import type { Client, ClientDocument } from '@/types/client';
 import { getProjects, deleteProject } from './projectService';
+import { docSnapshotToEntity } from '@/utils/firestore-helpers';
 
 const CLIENTS_COLLECTION = 'clients';
 
@@ -28,16 +30,15 @@ export interface ClientImportData {
   createdAt?: string | Date; // Can be a date string (from JSON) or a Date object.
 }
 
-const clientFromDoc = (docSnapshot: any): Client => {
-  const data = docSnapshot.data() as ClientDocument;
-  return {
-    id: docSnapshot.id,
-    name: data.name,
-    phone: data.phone === null ? undefined : (data.phone || undefined),
-    email: data.email === null ? undefined : (data.email || undefined),
-    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
-    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(),
-  };
+const clientFromDoc = (docSnapshot: DocumentSnapshot): Client => {
+  return docSnapshotToEntity<ClientDocument, Client>(
+    docSnapshot,
+    (data) => ({
+      name: data.name,
+      phone: data.phone === null ? undefined : (data.phone || undefined),
+      email: data.email === null ? undefined : (data.email || undefined),
+    })
+  );
 };
 
 

@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import * as React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 // Imports de tipos y constantes correctos
 import type { ProjectStatus } from '@/types/project';
 import { PROJECT_STATUS_OPTIONS, UNINSTALL_TYPE_OPTIONS } from '@/constants/project';
+import { DEFAULT_TAX_RATE, DEFAULT_SUBTOTAL, DEFAULT_WINDOWS_COUNT, DEFAULT_SQUARE_METERS, DEFAULT_COUNTRY } from '@/constants/defaults';
 
 // Tipos locales (sin duplicar ProjectStatus)
 type UninstallType = 'retiro_cristales' | 'retiro_marco' | 'retiro_completo' | 'otro';
@@ -242,10 +242,10 @@ export function ProjectForm({
       glosa: '',
       date: new Date(),
       status: 'ingresado',
-      subtotal: 0,
-      taxRate: 19,
-      windowsCount: 0,
-      squareMeters: 0,
+      subtotal: DEFAULT_SUBTOTAL,
+      taxRate: DEFAULT_TAX_RATE,
+      windowsCount: DEFAULT_WINDOWS_COUNT,
+      squareMeters: DEFAULT_SQUARE_METERS,
       phone: initialData?.phone || '',
       description: '',
       uninstall: false,
@@ -532,7 +532,7 @@ export function ProjectForm({
                             comuna: address.componentes?.comuna || '',
                             ciudad: address.componentes?.ciudad || '',
                             region: address.componentes?.region || '',
-                            pais: address.componentes?.pais || 'Chile',
+                            pais: address.componentes?.pais || DEFAULT_COUNTRY,
                             codigoPostal: address.componentes?.codigoPostal || ''
                           }
                         };

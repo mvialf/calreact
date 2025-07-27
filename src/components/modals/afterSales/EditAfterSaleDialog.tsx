@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import * as React from 'react';
+import React, { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AfterSaleForm, AfterSaleFormValues } from '@/components/forms/AfterSaleForm';
 import { Button } from '@/components/ui/button';

@@ -1,36 +1,9 @@
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { Visit, VisitStatus } from '@/types/visit';
 
-export type VisitStatus = 'Ingresada' | 'Agendada' | 'Reagendada' | 'Completada' | 'Cancelada';
-
-export interface Visit {
-  id?: string;
-  name: string;
-  phone: string;
-  address?: string;
-  municipality?: string;
-  status: VisitStatus;
-  scheduledDate: Date;
-  notes?: string;
-  fullAddress?: {
-    textoCompleto?: string;
-    coordenadas?: {
-      latitude: number;
-      longitude: number;
-    };
-    componentes?: {
-      calle?: string;
-      numero?: string;
-      comuna?: string;
-      ciudad?: string;
-      region?: string;
-      pais?: string;
-      codigoPostal?: string;
-    };
-  };
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+// Re-exportar los tipos para compatibilidad
+export type { Visit, VisitStatus };
 
 const VISITS_COLLECTION = 'visits';
 
@@ -111,7 +84,7 @@ export const seedExampleVisits = async () => {
       municipality: 'Santiago',
       status: 'Agendada',
       scheduledDate: new Date(2025, 5, 20, 10, 30),
-      notes: 'Cliente interesado en departamento de 2 dormitorios',
+      observations: 'Cliente interesado en departamento de 2 dormitorios',
       createdAt: new Date(2025, 5, 15),
       updatedAt: new Date(2025, 5, 15),
     },
@@ -122,7 +95,7 @@ export const seedExampleVisits = async () => {
       municipality: 'Providencia',
       status: 'Ingresada',
       scheduledDate: new Date(2025, 5, 22, 15, 0),
-      notes: 'Desea información sobre créditos hipotecarios',
+      observations: 'Desea información sobre créditos hipotecarios',
       createdAt: new Date(2025, 5, 16),
       updatedAt: new Date(2025, 5, 16),
     },
@@ -133,7 +106,7 @@ export const seedExampleVisits = async () => {
       municipality: 'Ñuñoa',
       status: 'Completada',
       scheduledDate: new Date(2025, 5, 18, 11, 0),
-      notes: 'Visita completada con éxito, interesado en financiamiento',
+      observations: 'Visita completada con éxito, interesado en financiamiento',
       createdAt: new Date(2025, 5, 10),
       updatedAt: new Date(2025, 5, 18),
     },

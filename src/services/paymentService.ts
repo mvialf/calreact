@@ -16,12 +16,14 @@ import {
   writeBatch,
   setDoc,
   collectionGroup,
-  Firestore
+  Firestore,
+  DocumentSnapshot
 } from 'firebase/firestore';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { db } from '@/lib/firebase/client';
 import type { Payment, PaymentDocument, PaymentImportData, PaymentMethod, PaymentTypeOption } from '@/types/payment';
 import type { ProjectDocument } from '@/types/project'; // Import ProjectDocument for typing
+import { docSnapshotToEntity, timestampToDate } from '@/utils/firestore-helpers';
 
 const PAYMENTS_COLLECTION = 'payments';
 const INSTALLMENTS_COLLECTION = 'installments'; // Colección para almacenar cuotas
@@ -41,15 +43,13 @@ export interface Installment {
   updatedAt?: Date;
 }
 
-const paymentFromDoc = (docSnapshot: any): Payment => {
-  const data = docSnapshot.data() as PaymentDocument;
-  return {
-    id: docSnapshot.id,
-    ...data,
-    date: data.date.toDate(), // date is now always a Timestamp
-    createdAt: data.createdAt.toDate(), // createdAt is now always a Timestamp
-    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(),
-  } as Payment;
+const paymentFromDoc = (docSnapshot: DocumentSnapshot): Payment => {
+  return docSnapshotToEntity<PaymentDocument, Payment>(
+    docSnapshot,
+    (data) => ({
+      date: timestampToDate(data.date),
+    })
+  );
 };
 
 export const getAllPayments = async (): Promise<Payment[]> => {

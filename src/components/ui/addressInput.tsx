@@ -1,7 +1,6 @@
 "use client"
 
-import * as React from "react"
-import { useCallback } from "react"
+import React, { useCallback } from "react"
 import { Loader2, MapPin, MapPinOff, X, MoreVertical, Building, Copy, Map, Share2 } from "lucide-react"
 import { useLoadScript } from "@react-google-maps/api"
 import { extractAddressComponents } from "@/utils/address-utils"

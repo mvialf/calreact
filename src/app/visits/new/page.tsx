@@ -22,6 +22,8 @@ export default function NewVisitPage() {
         status: data.status as VisitStatus,
         // Asegurarse de que la fecha sea un objeto Date
         scheduledDate: data.scheduledDate || new Date(),
+        // Manejar fullAddress que puede ser null
+        fullAddress: data.fullAddress || undefined,
       };
 
       // Guardar en Firestore

@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import * as React from 'react';
+import React, { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { VisitForm, VisitFormValues } from '@/components/forms/VisitForm';
 import { Button } from '@/components/ui/button';
@@ -15,9 +14,10 @@ import { DialogErrorBoundary } from '@/components/error-boundary/DialogErrorBoun
 interface EditVisitDialogProps {
   visit: Visit;
   children: React.ReactNode;
+  onSuccess?: () => void;
 }
 
-export function EditVisitDialog({ visit, children }: EditVisitDialogProps) {
+export function EditVisitDialog({ visit, children, onSuccess }: EditVisitDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -68,6 +68,7 @@ export function EditVisitDialog({ visit, children }: EditVisitDialogProps) {
           variant: 'default'
         });
         setIsOpen(false);
+        onSuccess?.();
       } catch (error) {
         console.error('Error en onSuccess:', error);
       }
@@ -112,6 +113,8 @@ export function EditVisitDialog({ visit, children }: EditVisitDialogProps) {
           municipality: visit.fullAddress.componentes?.comuna || '',
           fullAddress: {
             ...visit.fullAddress,
+            placeId: visit.fullAddress.placeId || '',
+            textoCompleto: visit.fullAddress.textoCompleto || '',
             // Asegurarse de que las coordenadas existan
             coordenadas: visit.fullAddress.coordenadas || { latitude: 0, longitude: 0 },
             // Asegurarse de que los componentes existan

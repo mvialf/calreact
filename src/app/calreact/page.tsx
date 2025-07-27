@@ -6,6 +6,7 @@ import { CalendarView } from '@/components/calendar/calendar-view';
 import { EventModal } from '@/components/calendar/event-modal';
 import { CalendarToolbar } from '@/components/calendar/calendar-toolbar';
 import { db } from '@/lib/firebase/client'; // Importar la instancia db configurada
+import { getFirestore } from 'firebase/firestore';
 import { getEvents, addEvent, updateEvent, deleteEvent } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeSearchText } from '@/utils/search-utils';
@@ -45,11 +46,11 @@ const CalendarViewSkeleton = () => (
 );
 
 export default function CalReactAppPage() {
-  // TODO: Configura Firebase y obtén la instancia de db y el userId del usuario autenticado.
-  // const db = getFirestore(); // Descomenta y configura según tu inicialización de Firebase
-  // const userId = "REEMPLAZAR_CON_USER_ID_REAL"; // Ej: useAuth().currentUser?.uid;
-  // Por ahora, usaremos placeholders para que el código compile. Reemplázalos.
-  const userId = "mockUserId"; // Placeholder para el ID de usuario. TODO: Reemplazar con la lógica de autenticación real.
+  // Configuración Firebase - usando instancia configurada
+  const db = getFirestore(); 
+  // NOTA: En producción, reemplazar con sistema de autenticación real
+  // Ej: const userId = useAuth().currentUser?.uid || "anonymous";
+  const userId = "mockUserId"; // Placeholder para desarrollo
 
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [currentDate, setCurrentDate] = useState<Date | undefined>(undefined); // Se inicializará en useEffect

@@ -68,6 +68,9 @@ export function Autocomplete({
   const [inputValue, setInputValue] = React.useState("")
   const [open, setOpen] = React.useState(false)
   const [selectedItem, setSelectedItem] = React.useState<AutocompleteItem | null>(null)
+  const [selectedIndex, setSelectedIndex] = React.useState(0)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const listRef = React.useRef<HTMLDivElement>(null)
 
   // Actualizar el valor del input cuando cambia el valor seleccionado
   React.useEffect(() => {
@@ -76,7 +79,7 @@ export function Autocomplete({
       setSelectedItem(item || null)
       // Mostrar solo el nombre del país y el código en el input, no la bandera
       if (item) {
-        const labelWithoutFlag = item.label.replace(/^[^\w]*/, ''); // Eliminar la bandera del label
+        const labelWithoutFlag = item.label.replace(/^[^\w]*/, '');
         setInputValue(labelWithoutFlag);
       } else {
         setInputValue("");
@@ -93,6 +96,10 @@ export function Autocomplete({
       item.label.toLowerCase().includes(inputValue.toLowerCase())
     )
   }, [inputValue, items])
+
+  React.useEffect(() => {
+    setSelectedIndex(0)
+  }, [filteredItems])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
@@ -118,7 +125,43 @@ export function Autocomplete({
       setInputValue(selected.label)
       onSelect(selectedValue)
       setOpen(false)
+      inputRef.current?.focus()
     }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open || filteredItems.length === 0) return
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedIndex(prev => (prev + 1) % filteredItems.length)
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedIndex(prev => (prev - 1 + filteredItems.length) % filteredItems.length)
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selectedIndex >= 0 && selectedIndex < filteredItems.length) {
+          handleSelect(filteredItems[selectedIndex].value)
+        }
+        break
+      case 'Escape':
+        e.preventDefault()
+        setOpen(false)
+        break
+      case 'Tab':
+        setOpen(false)
+        break
+    }
+  }
+
+  const handleBlur = () => {
+    // Pequeño delay para permitir clicks en los items
+    setTimeout(() => {
+      setOpen(false)
+    }, 150)
   }
 
   return (
@@ -137,10 +180,12 @@ export function Autocomplete({
                 </div>
               )}
               <Input
+                ref={inputRef}
                 type="text"
                 placeholder={placeholder}
                 value={inputValue}
                 onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
                 onFocus={() => {
                   if (inputValue.length > 0) {
                     setOpen(true)
@@ -153,6 +198,7 @@ export function Autocomplete({
                     setOpen(true)
                   }
                 }}
+                onBlur={handleBlur}
                 disabled={disabled || isLoading}
                 className={cn(
                   "w-full pr-10 h-10",
@@ -184,12 +230,16 @@ export function Autocomplete({
                 <CommandEmpty>{emptyText}</CommandEmpty>
               ) : (
                 <CommandGroup>
-                  {filteredItems.map((item) => (
+                  {filteredItems.map((item, index) => (
                     <CommandItem
                       key={item.value}
                       value={item.value}
                       onSelect={handleSelect}
-                      className="cursor-pointer flex items-center"
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      className={cn(
+                        "cursor-pointer flex items-center",
+                        index === selectedIndex && "bg-accent"
+                      )}
                     >
                       <Check
                         className={cn(

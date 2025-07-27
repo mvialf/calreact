@@ -14,6 +14,7 @@ interface PhoneInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElemen
   placeholder?: string;
   disabled?: boolean;
   country?: Country;
+  excludeCountryCode?: boolean;
 }
 
 export function PhoneInput({
@@ -23,6 +24,7 @@ export function PhoneInput({
   placeholder = "Número de teléfono",
   disabled = false,
   country: propCountry,
+  excludeCountryCode = false,
   ...props
 }: PhoneInputProps) {
   const { config } = useAppConfig();
@@ -48,10 +50,12 @@ export function PhoneInput({
 
   return (
     <div className={cn("relative flex items-center", className)}>
-      {/* Prefijo del código de país */}
-      <div className="absolute left-3 flex h-full items-center text-muted-foreground pointer-events-none">
-        {countryCode}
-      </div>
+      {/* Prefijo del código de país - solo si no está excluido */}
+      {!excludeCountryCode && (
+        <div className="absolute left-3 flex h-full items-center text-muted-foreground pointer-events-none">
+          {countryCode}
+        </div>
+      )}
       
       {/* Input para el número de teléfono */}
       <Input
@@ -61,12 +65,12 @@ export function PhoneInput({
         onChange={handleChange}
         placeholder={placeholder}
         disabled={disabled}
-        className={cn("pl-16")}
+        className={cn(excludeCountryCode ? "" : "pl-16")}
         {...props}
       />
       
       {/* Input oculto para el formulario con el valor completo */}
-      <input type="hidden" name="phone" value={`${countryCode}${displayValue}`} />
+      <input type="hidden" name="phone" value={excludeCountryCode ? displayValue : `${countryCode}${displayValue}`} />
     </div>
   );
 }

@@ -105,12 +105,15 @@ export function AfterSaleForm({
   const [selectedProject, setSelectedProject] = React.useState<ProjectType | null>(null);
 
   // Convertir proyectos a items del autocomplete
+  // Filtrar solo proyectos completados y pagados
   const projectItems: AutocompleteItem[] = React.useMemo(() => {
-    return projects.map(project => ({
-      value: project.id,
-      label: `${project.projectNumber} - ${project.clientName || 'Cliente no especificado'}`,
-      project // Guardamos el proyecto completo para acceso posterior
-    }));
+    return projects
+      .filter(project => project.status === 'completado' && project.isPaid === true)
+      .map(project => ({
+        value: project.id,
+        label: `${project.projectNumber} - ${project.clientName || 'Cliente no especificado'}`,
+        project // Guardamos el proyecto completo para acceso posterior
+      }));
   }, [projects]);
 
   // Función para renderizar items del autocomplete
