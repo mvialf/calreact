@@ -7,17 +7,13 @@
       "Bash(git checkout:*)",
       "Bash(git add:*)",
       "Bash(git push:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run dev:*)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
-  },
-  "mcpServers": {
-    "firebase": {
-      "command": "npx",
-      "args": ["-y", "firebase-tools@latest", "experimental:mcp"],
-      "env": {
-        "NODE_ENV": "development"
-      }
-    }
   }
 }

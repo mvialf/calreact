@@ -64,7 +64,7 @@ export function ProjectClientDisplay({ project, ...props }: ProjectClientDisplay
       {project.projectNumber && (
         <div className="text-sm font-medium">{project.projectNumber}</div>
       )}
-      <div className="text-xs text-muted-foreground">
+      <div className="text-sm">
         {displayClientName}
         {showGlosa && (
           <span> - {project.glosa?.trim()}</span>

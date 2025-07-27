@@ -34,8 +34,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Loader2, RefreshCw } from 'lucide-react';
 import { startOfDay, endOfDay, format } from '@/lib/calendar-utils';
 import { getReferencesByType, type ReferenceItem } from '@/services/eventReferenceService';
-// Importar el componente ProjectModal
-import { ProjectModal } from '@/components/modals/ProjectModal';
+// Importar el componente NewProjectEventModal
+import { NewProjectEventModal } from '@/components/modals/calendar/NewProjectEventModal';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -228,38 +228,45 @@ export function EventModal({
   };
 
   const handleProjectSave = (data: any) => {
-    // Construir un objeto de evento compatible con el formato esperado
-    // Aseguramos que el tipo sea exactamente uno de los valores permitidos
+    // Construir un objeto de evento con los datos del proyecto seleccionado
     const eventToSave: Omit<EventType, 'id'> & { id?: string } = {
       name: `Proyecto: ${data.projectNumber}${data.glosa ? ` - ${data.glosa}` : ''}`,
       startDate: startOfDay(startDate || new Date()),
       endDate: endDate ? endOfDay(endDate) : endOfDay(startDate || new Date()),
       description: data.description || '',
       color: color,
-      type: 'Proyecto', // Este valor ya es uno de los permitidos en EventType
+      type: 'Proyecto',
       referenceId: data.projectId,
-      status: undefined,
+      status: data.status,
+      location: data.address || data.fullAddress?.textoCompleto,
       ...(currentId && { id: currentId }),
-      // Los datos específicos del proyecto podemos almacenarlos en el campo 'metadata' si existe en EventType
-      // o podemos guardarlos en otro lugar como Firestore si es necesario
-      // Por ahora, podemos almacenarlos en el campo description si es importante
-      // O podemos extender EventType para incluir estos campos adicionales
     };
     
-    // Si queremos guardar información adicional como el checklist, podríamos usar
-    // localStorage o una base de datos para mantener esa información asociada al evento
+    // Agregar información adicional del proyecto a la descripción
+    let additionalInfo = '';
+    if (data.clientName) {
+      additionalInfo += `Cliente: ${data.clientName}\n`;
+    }
+    if (data.phone) {
+      additionalInfo += `Teléfono: ${data.phone}\n`;
+    }
+    if (data.subtotal) {
+      additionalInfo += `Subtotal: $${data.subtotal.toLocaleString()}\n`;
+    }
+    
+    if (additionalInfo) {
+      eventToSave.description = additionalInfo + (eventToSave.description ? `\n${eventToSave.description}` : '');
+    }
+    
+    // Agregar checklist si existe
     if (data.checklist && data.checklist.length > 0) {
-      // Aquí podríamos implementar lógica para guardar el checklist en otra parte
-      // Por ahora, lo agregamos a la descripción como texto
       const checklistText = data.checklist
         .map((item: any) => `[${item.isCompleted ? 'x' : ' '}] ${item.description}`)
         .join('\n');
       eventToSave.description = `${eventToSave.description}\n\nChecklist:\n${checklistText}`;
     }
     
-    // Llamar a la función onSave con los datos del evento
     onSave(eventToSave);
-    onClose();
   };
 
   // Renderizar la modal de proyecto específica si el tipo es 'Proyecto'
@@ -273,7 +280,7 @@ export function EventModal({
     };
     
     return (
-      <ProjectModal
+      <NewProjectEventModal
         isOpen={isOpen}
         onClose={onClose}
         onSubmit={handleProjectSave}

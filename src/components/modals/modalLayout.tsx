@@ -57,6 +57,10 @@ export interface ModalLayoutProps {
    */
   showDefaultButtons?: boolean;
   /**
+   * Si es true, oculta completamente el footer
+   */
+  hideFooter?: boolean;
+  /**
    * Referencia al formulario para trigger de submit
    */
   formRef?: React.RefObject<HTMLFormElement>;
@@ -78,6 +82,7 @@ export function ModalLayout({
   className,
   disabled = false,
   showDefaultButtons = true,
+  hideFooter = false,
   formRef,
 }: ModalLayoutProps) {
   return (
@@ -95,7 +100,7 @@ export function ModalLayout({
           {children}
         </div>
         
-        {showDefaultButtons && (
+        {!hideFooter && showDefaultButtons && (
           <DialogFooter className="bg-card flex justify-end space-x-2 py-4 px-6 border-t">
             <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancelar
