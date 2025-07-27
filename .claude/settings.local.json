@@ -1,28 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx:*)",
-      "Bash(git stash:*)",
-      "Bash(git checkout:*)",
-      "Bash(npm run typecheck:*)",
-      "Bash(npm run lint:*)",
-      "Bash(npm run test:ci:*)",
-      "Bash(npm install)",
-      "Bash(mv:*)",
-      "Bash(npm install:*)",
-      "Bash(git add:*)",
+      "Bash(npm uninstall:*)",
+      "WebFetch(domain:docs.windsurf.com)",
       "Bash(git commit:*)",
-      "Bash(diff:*)",
-      "Bash(rm:*)",
-      "Bash(npm run build:*)",
-      "Bash(find:*)",
-      "Bash(node:*)",
-      "Bash(del find_duplicate_imports.js)",
-      "WebFetch(domain:firebase.google.com)",
-      "mcp__ide__getDiagnostics",
-      "Bash(npm run typecheck:*)",
-      "Bash(npm run lint)",
-      "Bash(ls:*)"
+      "Bash(git checkout:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

@@ -20,9 +20,6 @@ Este archivo proporciona orientación a Claude Code (claude.ai/code) cuando trab
 - `npm run test:coverage` - Ejecutar pruebas con reporte de cobertura
 - `npm run test:all` - Ejecutar todas las pruebas
 
-### Desarrollo AI/Genkit
-- `npm run genkit:dev` - Iniciar servidor de desarrollo Genkit
-- `npm run genkit:watch` - Iniciar Genkit con observación de archivos
 
 ## Arquitectura del Proyecto
 
@@ -37,7 +34,6 @@ Cobralon-FB es una aplicación Next.js construida con Firebase para servicios ba
 - **Formularios**: React Hook Form con validación Zod
 - **Pruebas**: Jest, React Testing Library, Cypress
 - **Mapas**: Integración Google Maps API
-- **IA**: Integración Google Genkit
 
 ### Estructura Principal de la Aplicación
 
@@ -176,7 +172,6 @@ export const MiComponente: React.FC<MiComponenteProps> = ({ /* props */ }) => {
 
 ### Configuración de Build
 - Errores de TypeScript y ESLint ignorados durante builds (configurado en `next.config.ts`)
-- Archivos relacionados con IA en `src/ai/` excluidos de builds del cliente
 - Integración Google Maps API con variables de entorno
 
 ### Servicios Firebase (Arquitectura Optimizada)
@@ -221,7 +216,6 @@ export const MiComponente: React.FC<MiComponenteProps> = ({ /* props */ }) => {
 ### Configuración Técnica
 - La configuración de Firebase debe establecerse vía variables de entorno
 - Clave de API de Google Maps requerida para funcionalidad de direcciones  
-- Características de IA usan Google Genkit (archivos en `src/ai/` excluidos del build del cliente)
 - La aplicación soporta temas claro y oscuro
 - Actualizaciones en tiempo real vía listeners de Firestore en toda la aplicación
 
