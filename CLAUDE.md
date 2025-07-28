@@ -2,7 +2,7 @@
 
 Este archivo proporciona orientación a Claude Code (claude.ai/code) cuando trabaja con código en este repositorio.
 
-**ESTADO ACTUAL:** Auditoría de código completada (Enero 2025). El proyecto ha sido optimizado siguiendo mejores prácticas de arquitectura, eliminando duplicación de código y centralizando configuraciones.
+**ESTADO ACTUAL:** Refactorización completa de arquitectura de eventos completada (Julio 2025). El proyecto ha sido optimizado con una nueva arquitectura de eventos específicos por dominio, eliminando dependencias del sistema de eventos general y garantizando sincronización automática de datos de cliente.
 
 ## Comandos de Desarrollo
 
@@ -192,16 +192,58 @@ export const MiComponente: React.FC<MiComponenteProps> = ({ /* props */ }) => {
 - `updateTimestamps()` - Actualizar timestamps en modificaciones
 - `timestampToDate()` - Conversión segura de Timestamp a Date
 
+**Colecciones Firestore:**
+- `projects` - Proyectos principales (servicio: `projectService.ts`)
+- `projectEvents` - Eventos de proyecto independientes (servicio: `projectEventService.ts`) ✅ **NUEVO**
+- `clients` - Información de clientes con sincronización automática
+- `payments` - Pagos asociados a proyectos
+- `afterSales` - Servicios postventa
+- ~~`events`~~ - **DEPRECATED**: Sistema general de eventos eliminado
+
 ### Desarrollo de Componentes
 - Seguir patrones existentes en `src/components/ui/`
 - Usar utilidades Tailwind CSS siguiendo convenciones del proyecto
 - Implementar características de accesibilidad apropiadas
 - Incluir interfaces TypeScript para todas las props
 
+### **Arquitectura de Eventos Específicos por Dominio (Julio 2025)**
+
+**Filosofía**: Cada dominio (proyecto, postventa, visita) maneja sus eventos de forma independiente.
+
+#### Servicios de Eventos Especializados:
+- **`projectEventService.ts`** - Eventos específicos de proyecto ✅ **IMPLEMENTADO**
+- **`afterSalesEventService.ts`** - Para futuros eventos de postventa
+- **`visitEventService.ts`** - Para futuros eventos de visita
+
+#### Características de ProjectEvents:
+- **Sincronización automática** de `clientName` desde colección `clients`
+- **Validación robusta** con `eventValidation.ts`
+- **Auto-sanitización** de datos numéricos (previene NaN)
+- **Checklist integrado** para seguimiento de tareas
+- **Arquitectura preparada** para extensión a otros dominios
+
+#### Servicios de Soporte:
+- **`clientSyncService.ts`** - Sincronización automática cliente-proyecto
+- **`eventValidation.ts`** - Validaciones especializadas para eventos
+- **Componentes mejorados** con loading states y auto-sync
+
+#### Comandos Especiales:
+```bash
+# Script de sincronización de clientes
+npx tsx scripts/sync-client-names.ts
+
+# Test completo de eventos de proyecto
+npx tsx scripts/test-project-events.ts
+```
+
 ### Manejo de Formularios
 - Usar React Hook Form con esquemas Zod para validación
 - Componentes de formularios en `src/components/forms/`
 - Patrones consistentes de manejo de errores y retroalimentación al usuario
+- **Validación numérica robusta:** Prevenir valores NaN mediante:
+  - Esquemas Zod con `.default(0)` para campos numéricos
+  - Validación `isNaN()` e `isFinite()` en transformaciones
+  - Uso de `parseInt(value) || 0` y `parseFloat(value) || 0` en inputs
 
 ## Notas Importantes
 
@@ -212,6 +254,29 @@ export const MiComponente: React.FC<MiComponenteProps> = ({ /* props */ }) => {
 - **✅ COMPLETADO:** Implementación de utilidades Firestore reutilizables
 - **✅ COMPLETADO:** Unificación de configuración Firebase
 - **✅ COMPLETADO:** Resolución de TODOs pendientes críticos
+- **✅ COMPLETADO:** Implementación de colección independiente `projectEvents`
+
+### Estado Post-Refactorización Eventos (Julio 2025)
+- **✅ COMPLETADO:** Arquitectura de eventos específicos por dominio
+- **✅ COMPLETADO:** Eliminación de dependencias del sistema `events` general
+- **✅ COMPLETADO:** Sincronización automática de `clientName` en proyectos
+- **✅ COMPLETADO:** Sistema de validación robusto para eventos
+- **✅ COMPLETADO:** Componentes UI con estados de carga y auto-sync
+- **✅ COMPLETADO:** Tests unitarios para validaciones de eventos
+- **✅ COMPLETADO:** Scripts de testing y sincronización automatizados
+- **✅ COMPLETADO:** Resolución definitiva del error "Cliente no especificado"
+
+### Funcionalidades de Eventos de Proyecto (Julio 2025)
+- **Colección ProjectEvents:** Sistema completo y robusto ✅ **MEJORADO**
+  - Servicio: `src/services/projectEventService.ts` - Con sincronización automática
+  - Tipos: `ProjectEventType` y `ProjectEventDocument` en `src/types/project.ts`
+  - Modal: `NewProjectEventModal` - Completamente refactorizada con autoSave
+  - Validación: `src/utils/eventValidation.ts` - Sistema completo de validaciones
+  - Sync: `src/services/clientSyncService.ts` - Sincronización automática de clientes
+  - Componentes: `ClientDisplay` mejorado con loading states y auto-sync
+  - **Prevención completa de errores NaN** y valores inválidos
+  - **Checklist integrado** para seguimiento de tareas por evento
+  - **Auto-completado inteligente** de datos desde proyecto base
 
 ### Configuración Técnica
 - La configuración de Firebase debe establecerse vía variables de entorno
@@ -221,6 +286,34 @@ export const MiComponente: React.FC<MiComponenteProps> = ({ /* props */ }) => {
 
 ### Estándares de Desarrollo
 - **Comunicación:** Todo código, comentarios y documentación debe ser exclusivamente en español
-- **Arquitectura:** Seguir patrones establecidos post-auditoría
+- **Arquitectura:** Seguir patrones establecidos post-auditoría y refactorización de eventos
 - **Reutilización:** Priorizar utilidades existentes antes de crear nuevas
 - **Constantes:** Usar sistema centralizado en `src/constants/`
+- **Eventos:** Usar arquitectura específica por dominio - NO sistema general
+- **Sincronización:** Aprovechar servicios de auto-sync para datos de cliente
+- **Validación:** Usar `eventValidation.ts` para validaciones robustas
+
+### Patrones de Eventos Recomendados
+
+#### ✅ **CORRECTO - Eventos Específicos**:
+```typescript
+// Para eventos de proyecto
+import { createProjectEvent } from '@/services/projectEventService';
+
+// Para futuros eventos de postventa  
+import { createAfterSalesEvent } from '@/services/afterSalesEventService';
+```
+
+#### ❌ **INCORRECTO - Sistema General**:
+```typescript
+// NO usar - sistema deprecated
+import { EventType } from '@/types/event';
+import { createEvent } from '@/services/eventService'; // NO EXISTE
+```
+
+#### Creación de Nuevos Tipos de Eventos:
+1. Crear servicio específico: `[domain]EventService.ts`
+2. Definir tipos en `@/types/[domain].ts`
+3. Implementar validaciones en `@/utils/[domain]Validation.ts`
+4. Crear componentes especializados
+5. Seguir patrón de sincronización automática

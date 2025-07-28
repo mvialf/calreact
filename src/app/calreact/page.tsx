@@ -6,8 +6,8 @@ import { CalendarView } from '@/components/calendar/calendar-view';
 import { EventModal } from '@/components/calendar/event-modal';
 import { CalendarToolbar } from '@/components/calendar/calendar-toolbar';
 import { db } from '@/lib/firebase/client'; // Importar la instancia db configurada
-import { getFirestore } from 'firebase/firestore';
-import { getEvents, addEvent, updateEvent, deleteEvent } from '@/lib/firebase/firestore';
+import { getAllCalendarEvents } from '@/services/calendarEventService';
+import { updateProjectEvent } from '@/services/projectEventService';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeSearchText } from '@/utils/search-utils';
 import { startOfDay, endOfDay, isSameDay, parseISO } from '@/lib/calendar-utils';
@@ -46,8 +46,6 @@ const CalendarViewSkeleton = () => (
 );
 
 export default function CalReactAppPage() {
-  // Configuración Firebase - usando instancia configurada
-  const db = getFirestore(); 
   // NOTA: En producción, reemplazar con sistema de autenticación real
   // Ej: const userId = useAuth().currentUser?.uid || "anonymous";
   const userId = "mockUserId"; // Placeholder para desarrollo
@@ -73,30 +71,50 @@ export default function CalReactAppPage() {
     setCurrentDate(new Date());
   }, []);
 
-  // Efecto para cargar eventos (se ejecuta cuando userId, db, o toast cambian)
+  // Efecto para cargar eventos (se ejecuta cuando userId cambia)
   useEffect(() => {
     const fetchEvents = async () => {
-      if (!userId || Object.keys(db).length === 0) { // Verifica que db no sea el placeholder vacío
-        console.warn("Firestore db o userId no están configurados. Saltando carga de eventos.");
-        setIsLoadingEvents(false);
-        setEvents([]); // O mantén mockEvents si prefieres un fallback temporal
-        return;
-      }
       try {
         setIsLoadingEvents(true);
-        const fetchedEvents = await getEvents(db, userId);
+        console.log('📅 Cargando eventos del calendario...');
+        
+        // Verificar si Firebase está configurado correctamente
+        if (!db) {
+          console.warn("⚠️ Firestore no está configurado. Usando datos mock.");
+          setEvents([]);
+          return;
+        }
+        
+        // Usar el servicio que combina projectEvents y otros
+        const fetchedEvents = await getAllCalendarEvents(db, userId);
+        console.log(`✅ ${fetchedEvents.length} eventos cargados exitosamente`);
+        
         setEvents(fetchedEvents);
       } catch (error) {
-        console.error("Error al cargar eventos desde Firestore:", error);
-        toast({ title: "Error", description: "No se pudieron cargar los eventos.", variant: "destructive" });
-        setEvents([]); // Limpia eventos en caso de error
+        console.error("❌ Error al cargar eventos desde Firestore:", error);
+        
+        // No mostrar toast de error en desarrollo si Firebase no está configurado
+        const isFirebaseNotConfigured = error?.message?.includes?.('your-project-id') || 
+                                        error?.code === 'app/invalid-credential';
+        
+        if (!isFirebaseNotConfigured) {
+          toast({ 
+            title: "Error", 
+            description: "No se pudieron cargar los eventos del calendario.", 
+            variant: "destructive" 
+          });
+        } else {
+          console.warn("🔧 Firebase no configurado - funcionando en modo demo");
+        }
+        
+        setEvents([]); // Limpia eventos en caso de error  
       } finally {
         setIsLoadingEvents(false);
       }
     };
 
     fetchEvents();
-  }, [userId, db, toast]); // Dependencias actualizadas
+  }, [userId, toast]); // Dependencias actualizadas
 
   const filteredEvents = useMemo(() => {
     if (!filterTerm.trim()) {
@@ -169,7 +187,6 @@ export default function CalReactAppPage() {
       ...draggedEventData,
       startDate: new Date(draggedEventData.startDate),
       endDate: new Date(draggedEventData.endDate),
-      // Asegurarse de que los campos opcionales estén presentes
       name: draggedEventData.name || 'Sin título',
       description: draggedEventData.description || '',
       color: draggedEventData.color || 'hsl(var(--primary))',
@@ -194,46 +211,46 @@ export default function CalReactAppPage() {
       const newEndDate = new Date(originalEvent.endDate);
       newEndDate.setDate(newEndDate.getDate() + dayDiff);
       
-      // Asegurarse de que las nuevas fechas sean válidas
+      // Verificar que las fechas resultantes sean válidas
       if (isNaN(newStartDate.getTime()) || isNaN(newEndDate.getTime())) {
-        console.error("Fechas inválidas después del cálculo:", { newStartDate, newEndDate });
+        console.error("Fechas resultantes inválidas:", { newStartDate, newEndDate });
         return;
       }
       
-      // Si el evento era de todo el día, asegurarse de que las horas sean 00:00:00 y 23:59:59
-      const isAllDay = originalEvent.startDate.getHours() === 0 && 
-                      originalEvent.startDate.getMinutes() === 0 && 
-                      originalEvent.startDate.getSeconds() === 0;
-      
-      if (isAllDay) {
-        newStartDate.setHours(0, 0, 0, 0);
-        newEndDate.setHours(23, 59, 59, 999);
-      }
-      
       const eventIdToUpdate = active.id as string;
-      const changes: Partial<Omit<EventType, 'id'>> = { 
-        startDate: newStartDate, 
-        endDate: newEndDate 
-      };
 
       try {
-        if (!userId || Object.keys(db).length === 0) throw new Error("Firestore no configurado");
-        const updatedEvent = await updateEvent(db, userId, eventIdToUpdate, changes);
+        // Detectar si es un evento de proyecto por el tipo o referenceId
+        const isProjectEvent = originalEvent.type === 'Proyecto' || originalEvent.referenceId;
         
-        // Actualizar el estado local
-        setEvents(prevEvents =>
-          prevEvents.map(ev => (ev.id === updatedEvent.id ? updatedEvent : ev))
-        );
-        
-        toast({ 
-          title: "Tarea Actualizada", 
-          description: `La tarea se ha movido al ${updatedEvent.startDate.toLocaleDateString()}.` 
-        });
+        if (isProjectEvent && originalEvent.referenceId) {
+          // Usar API de ProjectEvents para actualizar
+          console.log('🔄 Actualizando ProjectEvent via API específica...');
+          
+          await updateProjectEvent(eventIdToUpdate, {
+            eventDate: newStartDate
+          }, db);
+          
+          // Refrescar eventos del calendario
+          await refreshCalendarEvents();
+          
+          toast({ 
+            title: "Evento de Proyecto Actualizado", 
+            description: `El evento se ha movido al ${newStartDate.toLocaleDateString()}.` 
+          });
+        } else {
+          // Para eventos genéricos (futuros), mostrar mensaje
+          toast({ 
+            title: "Función no disponible", 
+            description: "Solo los eventos de proyecto pueden moverse en el calendario.", 
+            variant: "destructive" 
+          });
+        }
       } catch (error) {
-        console.error("Error al actualizar tarea (drag and drop):", error);
+        console.error("Error al actualizar evento (drag and drop):", error);
         toast({ 
           title: "Error al Actualizar", 
-          description: "No se pudo cambiar la fecha de la tarea.", 
+          description: "No se pudo cambiar la fecha del evento.", 
           variant: "destructive" 
         });
       }
@@ -241,23 +258,13 @@ export default function CalReactAppPage() {
   };
 
   const handleEventResize = async (eventId: string, newStartDate: Date, newEndDate: Date) => {
-     const changes: Partial<Omit<EventType, 'id'>> = { 
-      startDate: startOfDay(newStartDate), 
-      endDate: endOfDay(newEndDate) 
-    };
-
-    try {
-      if (!userId || Object.keys(db).length === 0) throw new Error("Firestore no configurado");
-      const updatedEvent = await updateEvent(db, userId, eventId, changes);
-      setEvents(prevEvents =>
-        prevEvents.map(event => (event.id === updatedEvent.id ? updatedEvent : event))
-      );
-      toast({ title: "Tarea Redimensionada", description: "La duración de la tarea ha sido actualizada." });
-    } catch (error) {
-      console.error("Error al redimensionar tarea:", error);
-      toast({ title: "Error al Redimensionar", description: "No se pudo actualizar la duración de la tarea.", variant: "destructive" });
-      // Opcional: Revertir el cambio visual
-    }
+    // Deshabilitar redimensionado para eventos de proyecto
+    // Los eventos de proyecto deben editarse desde su interfaz específica
+    toast({ 
+      title: "Edición no disponible", 
+      description: "Los eventos de proyecto deben editarse desde su interfaz específica.", 
+      variant: "destructive" 
+    });
   };
 
   const handleModalClose = () => {
@@ -265,57 +272,46 @@ export default function CalReactAppPage() {
     setSelectedEvent(null);
   };
 
-  const handleModalSave = async (eventToSave: Omit<EventType, 'id'> & { id?: string }) => {
-    if (!userId || Object.keys(db).length === 0) {
-      toast({ title: "Error de Configuración", description: "Firestore no está configurado.", variant: "destructive" });
-      return;
-    }
-
-    const eventDataForDb = {
-      ...eventToSave,
-      name: eventToSave.name || "Evento sin título", // Asegurar que name siempre sea string
-      startDate: startOfDay(eventToSave.startDate),
-      endDate: endOfDay(eventToSave.endDate),
-      // color y description son opcionales y ya están en eventToSave
-    };
-
+  // Función para refrescar eventos del calendario
+  const refreshCalendarEvents = async () => {
+    console.log('🔄 Refrescando eventos del calendario...');
     try {
-      if (eventToSave.id) {
-        // Actualizar evento existente
-        const { id, ...dataToUpdate } = eventDataForDb;
-        const updatedEvent = await updateEvent(db, userId, eventToSave.id, dataToUpdate as Partial<Omit<EventType, 'id'>>);
-        setEvents(prevEvents =>
-          prevEvents.map(event => (event.id === updatedEvent.id ? updatedEvent : event))
-        );
-        toast({ title: "Tarea Actualizada", description: `"${updatedEvent.name}" ha sido actualizada.` });
-      } else {
-        // Crear nuevo evento
-        const newEvent = await addEvent(db, userId, eventDataForDb as Omit<EventType, 'id'>);
-        setEvents(prevEvents => [...prevEvents, newEvent]);
-        toast({ title: "Tarea Creada", description: `"${newEvent.name}" ha sido añadida.` });
-      }
-      handleModalClose();
+      setIsLoadingEvents(true);
+      const fetchedEvents = await getAllCalendarEvents(db, userId);
+      console.log(`✅ ${fetchedEvents.length} eventos recargados`);
+      setEvents(fetchedEvents);
     } catch (error) {
-      console.error("Error al guardar el evento:", error);
-      toast({ title: "Error al Guardar", description: "No se pudo guardar la tarea.", variant: "destructive" });
+      console.error('❌ Error al refrescar eventos:', error);
+      toast({ 
+        title: "Error", 
+        description: "No se pudieron refrescar los eventos.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsLoadingEvents(false);
     }
   };
 
+  const handleModalSave = async (eventToSave: Omit<EventType, 'id'> & { id?: string }) => {
+    // Solo permitir visualización, no edición
+    // Los eventos de proyecto deben editarse desde su interfaz específica
+    toast({ 
+      title: "Edición no disponible", 
+      description: "Los eventos de proyecto deben editarse desde su interfaz específica.", 
+      variant: "destructive" 
+    });
+    handleModalClose();
+  };
+
   const handleModalDelete = async (eventId: string) => {
-    if (!userId || Object.keys(db).length === 0) {
-      toast({ title: "Error de Configuración", description: "Firestore no está configurado.", variant: "destructive" });
-      return;
-    }
-    const eventToDelete = events.find(e => e.id === eventId);
-    try {
-      await deleteEvent(db, userId, eventId);
-      setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
-      toast({ title: "Tarea Eliminada", description: `"${eventToDelete?.name}" ha sido eliminada.`, variant: "destructive" });
-      handleModalClose();
-    } catch (error) {
-      console.error("Error al eliminar el evento:", error);
-      toast({ title: "Error al Eliminar", description: "No se pudo eliminar la tarea.", variant: "destructive" });
-    }
+    // Solo permitir visualización, no eliminación
+    // Los eventos de proyecto deben editarse desde su interfaz específica
+    toast({ 
+      title: "Eliminación no disponible", 
+      description: "Los eventos de proyecto deben eliminarse desde su interfaz específica.", 
+      variant: "destructive" 
+    });
+    handleModalClose();
   };
 
   if (!isClient || currentDate === undefined || isLoadingEvents) {
@@ -376,6 +372,7 @@ export default function CalReactAppPage() {
             onSave={handleModalSave}
             onDelete={selectedEvent && 'id' in selectedEvent ? handleModalDelete : undefined}
             preSelectedType={selectedEvent?.type as 'Proyecto' | 'Postventa' | 'Visita' | undefined}
+            onEventCreated={refreshCalendarEvents}
           />
         )}
       </div>

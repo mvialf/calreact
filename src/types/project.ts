@@ -38,6 +38,7 @@ export interface ProjectType {
   clientName?: string; // Added dynamically for display purposes
   description?: string;
   date: Date; // Start date of the project
+  eventDate?: Date; // Specific date for calendar scheduling
   subtotal: number;
   taxRate: number;
   total?: number; // Calculated: subtotal * (1 + taxRate / 100)
@@ -63,8 +64,9 @@ export interface ProjectType {
 
 // Helper type for Firestore document structure
 export interface ProjectDocument
-  extends Omit<ProjectType, 'id' | 'date' | 'createdAt' | 'updatedAt'> {
+  extends Omit<ProjectType, 'id' | 'date' | 'eventDate' | 'createdAt' | 'updatedAt'> {
   date: Timestamp;
+  eventDate?: Timestamp;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -88,4 +90,38 @@ export interface ProjectImportData
   status: ProjectStatus;
   isPaid?: boolean; // Added for import
   createdAt?: string | Date; // Can be string from JSON or Date object
+}
+
+// Tipo para evento de proyecto (colección separada)
+export interface ProjectEventType {
+  id: string;
+  projectId: string; // Referencia al proyecto relacionado
+  eventDate: Date; // Fecha específica del evento
+  description?: string;
+  phone?: string;
+  fullAddress?: FormattedAddress;
+  status: ProjectStatus;
+  windowsCount?: number;
+  squareMeters?: number;
+  uninstall?: boolean;
+  uninstallTypes?: string[];
+  uninstallOther?: string;
+  clientName?: string; // Copiado del proyecto para facilitar consultas
+  checklist?: Array<{
+    id: string;
+    description: string;
+    isCompleted: boolean;
+    createdAt?: Date;
+    completedAt?: Date;
+  }>; // Lista de verificación específica del evento
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Helper type para documento de evento de proyecto en Firestore
+export interface ProjectEventDocument
+  extends Omit<ProjectEventType, 'id' | 'eventDate' | 'createdAt' | 'updatedAt'> {
+  eventDate: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }

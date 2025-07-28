@@ -10,6 +10,25 @@ export interface EventType {
   referenceId: string; // ID del proyecto, postventa o visita relacionada
   status?: string; // Estado actual del evento (obtenido del registro referenciado)
   location?: string; // Ubicación del evento
+  
+  // Campos específicos para eventos de tipo Proyecto
+  clientName?: string; // Nombre del cliente
+  glosa?: string; // Información adicional del cliente
+  phone?: string; // Teléfono de contacto
+  windowsCount?: number; // Cantidad de ventanas
+  squareMeters?: number; // Metros cuadrados
+  uninstall?: boolean; // Desinstalación
+  fullAddress?: {
+    textoCompleto?: string; // Dirección completa
+    comune?: string; // Comuna
+    coordenadas?: {
+      latitude: number;
+      longitude: number;
+    };
+    componentes?: Record<string, string>; // Componentes de la dirección
+    informacionAdicional?: string; // Información adicional de la dirección
+  };
+  eventNotes?: string; // Notas específicas del evento
 }
 
 export type ViewOption = 'month' | 'week' | 'day';

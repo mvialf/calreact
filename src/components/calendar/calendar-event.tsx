@@ -8,6 +8,7 @@ import { isValid } from 'date-fns';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import type React from 'react';
+import { ClientDisplay } from '@/components/client-display';
 
 interface CalendarEventProps {
   event: EventType;
@@ -189,14 +190,32 @@ export function CalendarEvent({
       title={getTooltipText()}
       data-calendar-event="true" // Keep this for event click detection in parent
     >
-      <div className="font-semibold truncate">{event.name}</div>
-      {isMultiDay && (
-        <div className="text-xs opacity-80 truncate">
-          {formatLocalDate(event.startDate)} - {formatLocalDate(event.endDate)}
+      {event.type === 'Proyecto' ? (
+        <div className="space-y-1">
+          <ClientDisplay 
+            clientName={event.clientName || 'Cliente no especificado'}
+            glosa={event.glosa || ''}
+            className="text-foreground text-xs"
+          />
+          {event.fullAddress?.comune && (
+            <p className="text-xs text-muted-foreground truncate">
+              {event.fullAddress.comune}
+            </p>
+          )}
         </div>
-      )}
-      {!isMultiDay && view !== 'month' && event.description && (
-        <p className="text-xs truncate opacity-75 mt-0.5">{event.description}</p>
+      ) : (
+        // Mantener el comportamiento actual para otros tipos de eventos
+        <>
+          <div className="font-semibold truncate">{event.name}</div>
+          {isMultiDay && (
+            <div className="text-xs opacity-80 truncate">
+              {formatLocalDate(event.startDate)} - {formatLocalDate(event.endDate)}
+            </div>
+          )}
+          {!isMultiDay && view !== 'month' && event.description && (
+            <p className="text-xs truncate opacity-75 mt-0.5">{event.description}</p>
+          )}
+        </>
       )}
     </div>
   );

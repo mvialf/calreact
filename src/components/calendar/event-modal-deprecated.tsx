@@ -1,3 +1,8 @@
+// src/components/calendar/event-modal-deprecated.tsx
+// NOTA: Este archivo está marcado como deprecated
+// Los eventos de proyecto ahora se manejan con NewProjectEventModal
+// Solo se mantiene para compatibilidad temporal con Postventa y Visita
+
 "use client";
 
 import type { ChangeEvent, FormEvent } from 'react';
@@ -7,7 +12,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription, // Import DialogDescription
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
@@ -16,10 +21,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription as AlertDialogDescriptionContent, // Alias to avoid conflict
+  AlertDialogDescription as AlertDialogDescriptionContent,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle as AlertDialogTitleContent, // Alias to avoid conflict
+  AlertDialogTitle as AlertDialogTitleContent,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
@@ -30,39 +35,36 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { EventType } from '@/types/event';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Save, Loader2, RefreshCw } from 'lucide-react';
-import { startOfDay, endOfDay, format } from '@/lib/calendar-utils';
+import { Trash2, Save, RefreshCw, AlertTriangle } from 'lucide-react';
+import { startOfDay, endOfDay } from '@/lib/calendar-utils';
 import { getReferencesByType, type ReferenceItem } from '@/services/eventReferenceService';
-// Importar el componente NewProjectEventModal
 import { NewProjectEventModal } from '@/components/modals/calendar/NewProjectEventModal';
 
-interface EventModalProps {
+interface EventModalDeprecatedProps {
   isOpen: boolean;
   eventData?: EventType | Partial<Omit<EventType, 'id'>> | null;
   onClose: () => void;
   onSave: (event: Omit<EventType, 'id'> & { id?: string }) => void;
   onDelete?: (eventId: string) => void;
   preSelectedType?: 'Proyecto' | 'Postventa' | 'Visita';
-  onEventCreated?: () => Promise<void>;
 }
 
 const defaultColor = 'hsl(var(--primary))';
 
-export function EventModal({
+export function EventModalDeprecated({
   isOpen,
   eventData,
   onClose,
   onSave,
   onDelete,
   preSelectedType,
-  onEventCreated,
-}: EventModalProps) {
+}: EventModalDeprecatedProps) {
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [description, setDescription] = useState('');
   const [color, setColor] = useState(defaultColor);
-  const [type, setType] = useState<'Proyecto' | 'Postventa' | 'Visita' | ''>('');
+  const [type, setType] = useState<'Postventa' | 'Visita' | ''>('');
   const [referenceId, setReferenceId] = useState('');
   const [status, setStatus] = useState<string | undefined>(undefined);
   const [currentId, setCurrentId] = useState<string | undefined>(undefined);
@@ -71,11 +73,18 @@ export function EventModal({
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   
-  // Estado para controlar si se debe mostrar la modal específica de proyecto
-  const [showProjectModal, setShowProjectModal] = useState(false);
+  // Estado para controlar redirección a modal de proyecto
+  const [showProjectRedirect, setShowProjectRedirect] = useState(false);
 
-  // Cargar opciones de referencia según el tipo seleccionado
-  const loadReferenceOptions = async (selectedType: 'Proyecto' | 'Postventa' | 'Visita') => {
+  // Si el tipo preseleccionado es 'Proyecto', mostrar advertencia y redireccionar
+  useEffect(() => {
+    if (preSelectedType === 'Proyecto') {
+      setShowProjectRedirect(true);
+    }
+  }, [preSelectedType]);
+
+  // Cargar opciones de referencia (solo para Postventa y Visita)
+  const loadReferenceOptions = async (selectedType: 'Postventa' | 'Visita') => {
     try {
       setLoadingReferences(true);
       const references = await getReferencesByType(selectedType);
@@ -103,27 +112,26 @@ export function EventModal({
   useEffect(() => {
     if (eventData) {
       // Editando un evento existente
+      const eventType = (eventData as EventType).type;
+      
+      if (eventType === 'Proyecto') {
+        // Redireccionar eventos de proyecto existentes
+        setShowProjectRedirect(true);
+        return;
+      }
+      
       setCurrentId((eventData as EventType).id);
       setName(eventData.name || '');
-
-      const start = eventData.startDate ? new Date(eventData.startDate) : new Date();
-      setStartDate(start);
-
-      // Default end date to same day as start if not provided or if it's an old event before endOfDay logic
-      const end = eventData.endDate ? new Date(eventData.endDate) : start;
-      setEndDate(end);
-
+      setStartDate(eventData.startDate ? new Date(eventData.startDate) : new Date());
+      setEndDate(eventData.endDate ? new Date(eventData.endDate) : new Date());
       setDescription(eventData.description || '');
       setColor(eventData.color || defaultColor);
-      
-      const eventType = (eventData as EventType).type || '';
-      setType(eventType);
+      setType(eventType === 'Postventa' || eventType === 'Visita' ? eventType : '');
       setReferenceId((eventData as EventType).referenceId || '');
       setStatus((eventData as EventType).status);
       
-      // Si es un evento existente con tipo, cargar las referencias disponibles
-      if (eventType) {
-        loadReferenceOptions(eventType);
+      if (eventType && eventType !== 'Proyecto') {
+        loadReferenceOptions(eventType as 'Postventa' | 'Visita');
       }
     } else {
       // Creando un nuevo evento
@@ -134,60 +142,49 @@ export function EventModal({
       setEndDate(now);
       setDescription('');
       setColor(defaultColor);
-      
-      // Si hay un tipo preseleccionado, usarlo
-      if (preSelectedType) {
-        setType(preSelectedType);
-        loadReferenceOptions(preSelectedType);
-      } else {
-        setType('');
-      }
-      
+      setType('');
       setReferenceId('');
       setStatus(undefined);
       setAvailableReferences([]);
     }
-  }, [eventData, preSelectedType]);
-
-  useEffect(() => {
-    if (isOpen) {
-      // Aplicar el tipo pre-seleccionado si está disponible
-      if (preSelectedType) {
-        setType(preSelectedType);
-        loadReferenceOptions(preSelectedType);
-        
-        // Si es un proyecto, mostrar la modal específica de proyecto
-        if (preSelectedType === 'Proyecto') {
-          setShowProjectModal(true);
-        } else {
-          setShowProjectModal(false);
-        }
-      }
-    } else {
-      // Reiniciar estado cuando se cierra la modal
-      setShowProjectModal(false);
-    }
-  }, [isOpen, preSelectedType]);
+  }, [eventData]);
 
   const handleSave = (e: FormEvent) => {
     e.preventDefault();
+    
     if (!name.trim()) {
-      toast({ title: "Error de Validación", description: "El nombre de la tarea es obligatorio.", variant: "destructive" });
+      toast({ 
+        title: "Error de Validación", 
+        description: "El nombre de la tarea es obligatorio.", 
+        variant: "destructive" 
+      });
       return;
     }
     
     if (!type) {
-      toast({ title: "Error de Validación", description: "El tipo de evento es obligatorio.", variant: "destructive" });
+      toast({ 
+        title: "Error de Validación", 
+        description: "El tipo de evento es obligatorio.", 
+        variant: "destructive" 
+      });
       return;
     }
     
     if (!referenceId) {
-      toast({ title: "Error de Validación", description: `Debe seleccionar un ${type.toLowerCase()} de referencia.`, variant: "destructive" });
+      toast({ 
+        title: "Error de Validación", 
+        description: `Debe seleccionar un ${type.toLowerCase()} de referencia.`, 
+        variant: "destructive" 
+      });
       return;
     }
 
     if (!startDate || !endDate) {
-      toast({ title: "Error de Validación", description: "Las fechas son obligatorias.", variant: "destructive" });
+      toast({ 
+        title: "Error de Validación", 
+        description: "Las fechas son obligatorias.", 
+        variant: "destructive" 
+      });
       return;
     }
 
@@ -195,7 +192,11 @@ export function EventModal({
     const finalEndDate = endOfDay(endDate);
 
     if (finalEndDate < finalStartDate) {
-      toast({ title: "Error de Validación", description: "La fecha de fin no puede ser anterior a la fecha de inicio.", variant: "destructive" });
+      toast({ 
+        title: "Error de Validación", 
+        description: "La fecha de fin no puede ser anterior a la fecha de inicio.", 
+        variant: "destructive" 
+      });
       return;
     }
 
@@ -209,9 +210,11 @@ export function EventModal({
       referenceId,
       status,
     };
+    
     if (currentId) {
       eventToSave.id = currentId;
     }
+    
     onSave(eventToSave);
   };
 
@@ -221,76 +224,45 @@ export function EventModal({
     }
   };
 
-
   const handleCloseDialog = (open: boolean) => {
     if (!open) {
       onClose();
+      setShowProjectRedirect(false);
     }
   };
 
-  const handleProjectSave = (data: any) => {
-    // Construir un objeto de evento con los datos del proyecto seleccionado
-    const eventToSave: Omit<EventType, 'id'> & { id?: string } = {
-      name: `Proyecto: ${data.projectNumber}${data.glosa ? ` - ${data.glosa}` : ''}`,
-      startDate: startOfDay(startDate || new Date()),
-      endDate: endDate ? endOfDay(endDate) : endOfDay(startDate || new Date()),
-      description: data.description || '',
-      color: color,
-      type: 'Proyecto',
-      referenceId: data.projectId,
-      status: data.status,
-      location: data.address || data.fullAddress?.textoCompleto,
-      ...(currentId && { id: currentId }),
-    };
-    
-    // Agregar información adicional del proyecto a la descripción
-    let additionalInfo = '';
-    if (data.clientName) {
-      additionalInfo += `Cliente: ${data.clientName}\n`;
-    }
-    if (data.phone) {
-      additionalInfo += `Teléfono: ${data.phone}\n`;
-    }
-    if (data.subtotal) {
-      additionalInfo += `Subtotal: $${data.subtotal.toLocaleString()}\n`;
-    }
-    
-    if (additionalInfo) {
-      eventToSave.description = additionalInfo + (eventToSave.description ? `\n${eventToSave.description}` : '');
-    }
-    
-    // Agregar checklist si existe
-    if (data.checklist && data.checklist.length > 0) {
-      const checklistText = data.checklist
-        .map((item: any) => `[${item.isCompleted ? 'x' : ' '}] ${item.description}`)
-        .join('\n');
-      eventToSave.description = `${eventToSave.description}\n\nChecklist:\n${checklistText}`;
-    }
-    
-    onSave(eventToSave);
-  };
-
-  // Renderizar la modal de proyecto específica si el tipo es 'Proyecto'
-  if (type === 'Proyecto' && showProjectModal) {
-    // Datos iniciales para la modal de proyecto
-    const initialProjectData = {
-      projectId: referenceId || '',
-      description: description || '',
-      // Extraer checklist si existe en la descripción
-      checklist: [],
-    };
-    
+  // Modal de redirección para eventos de proyecto
+  if (showProjectRedirect) {
     return (
-      <NewProjectEventModal
-        isOpen={isOpen}
-        onClose={onClose}
-        onSubmit={handleProjectSave}
-        initialData={initialProjectData}
-      />
+      <Dialog open={isOpen} onOpenChange={handleCloseDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Eventos de Proyecto Actualizados
+            </DialogTitle>
+            <DialogDescription>
+              Los eventos de proyecto ahora se manejan con una modal específica más completa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Para crear o editar eventos de proyecto, utiliza la nueva funcionalidad 
+              específica que incluye campos adicionales como dirección, checklist, 
+              y sincronización automática de datos del cliente.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => handleCloseDialog(false)} variant="outline">
+              Entendido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     );
   }
   
-  // Modal genérica para otros tipos de eventos
+  // Modal para eventos de Postventa y Visita únicamente
   return (
     <Dialog open={isOpen} onOpenChange={handleCloseDialog}>
       <DialogContent className="sm:max-w-[480px] shadow-xl rounded-lg">
@@ -301,30 +273,30 @@ export function EventModal({
           <DialogDescription>
             {currentId ? 'Modifica los detalles de la tarea existente.' : 'Ingresa los detalles para una nueva tarea.'}
           </DialogDescription>
+          <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border">
+            ⚠️ Nota: Para eventos de proyecto, usa la modal específica de proyectos
+          </div>
         </DialogHeader>
         <form onSubmit={handleSave}>
           <div className="grid gap-6 py-6 px-2">
             <div className="grid gap-3">
               <Label htmlFor="name" className="text-sm font-medium">Nombre de la Tarea</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                  placeholder="Ej: Comprar víveres"
-                  className="flex-grow"
-                  required
-                />
-              </div>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                placeholder="Ej: Revisión postventa"
+                required
+              />
             </div>
 
             <div className="grid gap-3">
               <Label htmlFor="event-type" className="text-sm font-medium">Tipo de Evento</Label>
               <Select 
                 value={type} 
-                onValueChange={(value: 'Proyecto' | 'Postventa' | 'Visita') => {
+                onValueChange={(value: 'Postventa' | 'Visita') => {
                   setType(value);
-                  setReferenceId(''); // Resetear ID de referencia al cambiar el tipo
+                  setReferenceId('');
                   loadReferenceOptions(value);
                 }}
                 required
@@ -333,7 +305,6 @@ export function EventModal({
                   <SelectValue placeholder="Selecciona un tipo de evento" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Proyecto">Proyecto</SelectItem>
                   <SelectItem value="Postventa">Postventa</SelectItem>
                   <SelectItem value="Visita">Visita</SelectItem>
                 </SelectContent>
@@ -341,34 +312,14 @@ export function EventModal({
             </div>
 
             <div className="grid gap-3">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="reference" className="text-sm font-medium">
-                  {type === 'Proyecto' ? 'Seleccionar Proyecto' : 
-                   type === 'Postventa' ? 'Seleccionar Servicio Postventa' : 
-                   type === 'Visita' ? 'Seleccionar Visita' :
-                   'Seleccionar Referencia'}
-                </Label>
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="icon" 
-                  disabled={!type || loadingReferences} 
-                  onClick={() => type && loadReferenceOptions(type)} 
-                  title="Actualizar opciones"
-                >
-                  <RefreshCw className={`h-4 w-4 ${loadingReferences ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
+              <Label htmlFor="reference" className="text-sm font-medium">
+                {type === 'Postventa' ? 'Seleccionar Servicio Postventa' : 
+                 type === 'Visita' ? 'Seleccionar Visita' :
+                 'Seleccionar Referencia'}
+              </Label>
               <Select 
                 value={referenceId} 
-                onValueChange={(value) => {
-                  setReferenceId(value);
-                  // Buscar el estado de la referencia seleccionada y actualizarlo
-                  const selectedRef = availableReferences.find(ref => ref.id === value);
-                  if (selectedRef && selectedRef.status) {
-                    setStatus(selectedRef.status);
-                  }
-                }}
+                onValueChange={setReferenceId}
                 disabled={!type || availableReferences.length === 0}
                 required
               >
@@ -384,20 +335,8 @@ export function EventModal({
                       {ref.name} {ref.status && `(${ref.status})`}
                     </SelectItem>
                   ))}
-                  {availableReferences.length === 0 && type && (
-                    <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                      {loadingReferences ? 
-                        "Cargando opciones..." : 
-                        `No hay ${type.toLowerCase()} disponibles.`}
-                    </div>
-                  )}
                 </SelectContent>
               </Select>
-              {status && (
-                <div className="text-xs text-muted-foreground">
-                  Estado actual: <span className="font-medium">{status}</span>
-                </div>
-              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -406,10 +345,6 @@ export function EventModal({
                 <InputDate
                   date={startDate}
                   onSelect={setStartDate}
-                  calendarProps={{
-                    fromYear: new Date().getFullYear() - 1,
-                    toYear: new Date().getFullYear() + 5,
-                  }}
                 />
               </div>
               <div className="grid gap-3">
@@ -417,10 +352,6 @@ export function EventModal({
                 <InputDate
                   date={endDate}
                   onSelect={setEndDate}
-                  calendarProps={{
-                    fromYear: new Date().getFullYear() - 1,
-                    toYear: new Date().getFullYear() + 5,
-                  }}
                 />
               </div>
             </div>
@@ -435,33 +366,10 @@ export function EventModal({
                 className="min-h-[100px]"
               />
             </div>
-
-            <div className="grid gap-3">
-              <Label htmlFor="color" className="text-sm font-medium">Color de la Tarea</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="color-text"
-                  type="text"
-                  value={color}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setColor(e.target.value)}
-                  placeholder="Ej: #BA68C8 o azul"
-                  className="flex-grow"
-                />
-                <Input
-                  id="color-picker"
-                  type="color"
-                  value={color.startsWith('#') ? color : '#000000'} // type="color" needs hex
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setColor(e.target.value)}
-                  className="w-10 h-10 p-0 border-none rounded-md cursor-pointer"
-                  aria-label="Elegir color de la tarea"
-                />
-              </div>
-               <p className="text-xs text-muted-foreground">Introduce un código hexadecimal (ej: #BA68C8) o usa el selector de color.</p>
-            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             {currentId && onDelete && (
-               <AlertDialog>
+              <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button type="button" variant="destructive" className="w-full sm:w-auto">
                     <Trash2 className="mr-2 h-4 w-4" /> Eliminar

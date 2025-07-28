@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { AddressInput } from '@/components/ui/addressInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { InputDate } from '@/components/ui/date-picker';
 
 // Imports de tipos y constantes
 import type { ProjectStatus } from '@/types/project';
@@ -28,8 +29,9 @@ const formSchema = z.object({
   phone: z.string().optional(),
   fullAddress: z.any().optional(), // FormattedAddress | null
   status: z.string().min(1, "El estado es requerido"),
-  windowsCount: z.number().min(0, "El número de ventanas debe ser positivo"),
-  squareMeters: z.number().min(0, "Los metros cuadrados deben ser positivos"),
+  eventDate: z.date().optional(),
+  windowsCount: z.number().int().min(0, "El número de ventanas debe ser positivo").default(0),
+  squareMeters: z.number().min(0, "Los metros cuadrados deben ser positivos").default(0),
   uninstall: z.boolean().default(false),
   uninstallTypes: z.array(z.string()).optional().default([]),
 });
@@ -37,6 +39,7 @@ const formSchema = z.object({
 // Tipo para los valores del formulario
 export type NewProjectEventFormValues = z.infer<typeof formSchema> & {
   clientName?: string;
+  uninstallOther?: string;
   checklist?: Array<{
     id: string;
     description: string;
@@ -72,14 +75,53 @@ export function NewProjectEventForm({
       phone: initialData?.phone || "",
       fullAddress: initialData?.fullAddress || null,
       status: initialData?.status || "ingresado",
-      windowsCount: Number(initialData?.windowsCount) || DEFAULT_WINDOWS_COUNT || 0,
-      squareMeters: Number(initialData?.squareMeters) || DEFAULT_SQUARE_METERS || 0,
+      eventDate: initialData?.eventDate || undefined,
+      windowsCount: (() => {
+        const value = initialData?.windowsCount;
+        if (value == null || value === undefined) return DEFAULT_WINDOWS_COUNT || 0;
+        const numValue = Number(value);
+        return isNaN(numValue) || !isFinite(numValue) ? 0 : Math.max(0, Math.floor(numValue));
+      })(),
+      squareMeters: (() => {
+        const value = initialData?.squareMeters;
+        if (value == null || value === undefined) return DEFAULT_SQUARE_METERS || 0;
+        const numValue = Number(value);
+        return isNaN(numValue) || !isFinite(numValue) ? 0 : Math.max(0, numValue);
+      })(),
       uninstall: Boolean(initialData?.uninstall) || false,
       uninstallTypes: Array.isArray(initialData?.uninstallTypes) ? initialData.uninstallTypes : [],
       checklist: Array.isArray(initialData?.checklist) ? initialData.checklist : [],
     },
   });
 
+
+  // Efecto para actualizar el formulario cuando cambian los datos iniciales
+  useEffect(() => {
+    if (initialData) {
+      const getValidNumber = (value: any, defaultValue: number): number => {
+        if (value == null || value === undefined) return defaultValue;
+        const numValue = Number(value);
+        return isNaN(numValue) || !isFinite(numValue) ? defaultValue : Math.max(0, numValue);
+      };
+
+      const windowsCount = getValidNumber(initialData.windowsCount, DEFAULT_WINDOWS_COUNT || 0);
+      const squareMeters = getValidNumber(initialData.squareMeters, DEFAULT_SQUARE_METERS || 0);
+      
+      form.reset({
+        projectId: initialData.projectId || "",
+        description: initialData.description || "",
+        phone: initialData.phone || "",
+        fullAddress: initialData.fullAddress || null,
+        status: initialData.status || "ingresado",
+        eventDate: initialData.eventDate || undefined,
+        windowsCount: Math.floor(windowsCount),
+        squareMeters,
+        uninstall: Boolean(initialData.uninstall) || false,
+        uninstallTypes: Array.isArray(initialData.uninstallTypes) ? initialData.uninstallTypes : [],
+        checklist: Array.isArray(initialData.checklist) ? initialData.checklist : [],
+      });
+    }
+  }, [initialData, form]);
 
   // Observar cambios en desinstalación
   const watchUninstall = form.watch('uninstall');
@@ -101,7 +143,7 @@ export function NewProjectEventForm({
 
 
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {/* Teléfono */}
         <FormField
           control={form.control}
@@ -146,6 +188,26 @@ export function NewProjectEventForm({
             </FormItem>
           )}
         />
+
+        {/* Fecha del Evento */}
+        <FormField
+          control={form.control}
+          name="eventDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Fecha del Evento</FormLabel>
+              <FormControl> 
+                <InputDate
+                  date={field.value}
+                  onSelect={field.onChange}
+                  disabled={disabled}
+                  placeholder="Seleccionar fecha"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>  
 
         {/* Dirección */}
@@ -185,8 +247,8 @@ export function NewProjectEventForm({
                     min="0"
                     disabled={disabled}
                     onChange={(e) => {
-                      const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                      field.onChange(isNaN(value) ? 0 : value);
+                      const value = parseInt(e.target.value) || 0;
+                      field.onChange(Math.max(0, value));
                     }}
                   />
                 </FormControl>
@@ -209,8 +271,8 @@ export function NewProjectEventForm({
                     step="0.1"
                     disabled={disabled}
                     onChange={(e) => {
-                      const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                      field.onChange(isNaN(value) ? 0 : value);
+                      const value = parseFloat(e.target.value) || 0;
+                      field.onChange(Math.max(0, value));
                     }}
                   />
                 </FormControl>
@@ -245,7 +307,7 @@ export function NewProjectEventForm({
           {watchUninstall && (
             <div className="pl-6 space-y-2">
               <Label>Tipos de desinstalación</Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 align-center">
                 {UNINSTALL_TYPE_OPTIONS.map((type) => (
                   <div key={type} className="flex items-center space-x-2">
                     <Checkbox
