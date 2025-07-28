@@ -18,6 +18,7 @@ import {
   TableCell,
 } from '@/components/table/table';
 import { Button } from '@/components/ui/button';
+import { TABLE_WIDTHS } from '@/constants/ui';
 import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
@@ -202,10 +203,10 @@ export default function ClientsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[250px]">Nombre</TableHead>
-                    <TableHead className="w-[150px]">Teléfono</TableHead>
+                    <TableHead className={TABLE_WIDTHS.large}>Nombre</TableHead>
+                    <TableHead className={TABLE_WIDTHS.small}>Teléfono</TableHead>
                     <TableHead>Correo Electrónico</TableHead>
-                    <TableHead className="text-right w-[100px]">Acciones</TableHead>
+                    <TableHead className={`text-right ${TABLE_WIDTHS.actions}`}>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -218,10 +219,10 @@ export default function ClientsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[250px]">Nombre</TableHead>
-                    <TableHead className="w-[150px]">Teléfono</TableHead>
+                    <TableHead className={TABLE_WIDTHS.large}>Nombre</TableHead>
+                    <TableHead className={TABLE_WIDTHS.small}>Teléfono</TableHead>
                     <TableHead>Correo Electrónico</TableHead>
-                    <TableHead className="text-right w-[100px]">Acciones</TableHead>
+                    <TableHead className={`text-right ${TABLE_WIDTHS.actions}`}>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -1,9 +1,14 @@
 "use client";
 
+// React imports
 import React, { useEffect } from 'react';
+
+// Third-party imports
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+
+// UI Component imports
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,11 +21,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { InputDate } from '@/components/ui/date-picker';
 
-// Imports de tipos y constantes
-import type { ProjectStatus } from '@/types/project';
+// Types imports
+import type { ProjectStatus, FormattedAddress } from '@/types/project';
+
+// Constants imports
 import { PROJECT_STATUS_OPTIONS, UNINSTALL_TYPE_OPTIONS } from '@/constants/project';
-import { DEFAULT_WINDOWS_COUNT, DEFAULT_SQUARE_METERS } from '@/constants/defaults';
-import type { FormattedAddress } from '@/types/project';
+import { 
+  DEFAULT_WINDOWS_COUNT, 
+  DEFAULT_SQUARE_METERS, 
+  DEFAULT_PROJECT_STATUS,
+  DEFAULT_EVENT_DESCRIPTION,
+  DEFAULT_PHONE,
+  DEFAULT_UNINSTALL,
+  DEFAULT_UNINSTALL_TYPES
+} from '@/constants/defaults';
 
 // Esquema de validación para el formulario de evento de proyecto
 const formSchema = z.object({
@@ -57,13 +71,13 @@ export interface NewProjectEventFormProps {
   disabled?: boolean;
 }
 
-export function NewProjectEventForm({
+export const NewProjectEventForm: React.FC<NewProjectEventFormProps> = ({
   formRef,
   onSubmit,
   initialData,
   isSubmitting = false,
   disabled = false,
-}: NewProjectEventFormProps) {
+}) => {
   const { toast } = useToast();
 
   // Formulario
@@ -71,10 +85,10 @@ export function NewProjectEventForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       projectId: initialData?.projectId || "",
-      description: initialData?.description || "",
-      phone: initialData?.phone || "",
+      description: initialData?.description || DEFAULT_EVENT_DESCRIPTION,
+      phone: initialData?.phone || DEFAULT_PHONE,
       fullAddress: initialData?.fullAddress || null,
-      status: initialData?.status || "ingresado",
+      status: initialData?.status || DEFAULT_PROJECT_STATUS,
       eventDate: initialData?.eventDate || undefined,
       windowsCount: (() => {
         const value = initialData?.windowsCount;
@@ -88,8 +102,8 @@ export function NewProjectEventForm({
         const numValue = Number(value);
         return isNaN(numValue) || !isFinite(numValue) ? 0 : Math.max(0, numValue);
       })(),
-      uninstall: Boolean(initialData?.uninstall) || false,
-      uninstallTypes: Array.isArray(initialData?.uninstallTypes) ? initialData.uninstallTypes : [],
+      uninstall: Boolean(initialData?.uninstall) || DEFAULT_UNINSTALL,
+      uninstallTypes: Array.isArray(initialData?.uninstallTypes) ? initialData.uninstallTypes : DEFAULT_UNINSTALL_TYPES,
       checklist: Array.isArray(initialData?.checklist) ? initialData.checklist : [],
     },
   });
@@ -109,15 +123,15 @@ export function NewProjectEventForm({
       
       form.reset({
         projectId: initialData.projectId || "",
-        description: initialData.description || "",
-        phone: initialData.phone || "",
+        description: initialData.description || DEFAULT_EVENT_DESCRIPTION,
+        phone: initialData.phone || DEFAULT_PHONE,
         fullAddress: initialData.fullAddress || null,
-        status: initialData.status || "ingresado",
+        status: initialData.status || DEFAULT_PROJECT_STATUS,
         eventDate: initialData.eventDate || undefined,
         windowsCount: Math.floor(windowsCount),
         squareMeters,
-        uninstall: Boolean(initialData.uninstall) || false,
-        uninstallTypes: Array.isArray(initialData.uninstallTypes) ? initialData.uninstallTypes : [],
+        uninstall: Boolean(initialData.uninstall) || DEFAULT_UNINSTALL,
+        uninstallTypes: Array.isArray(initialData.uninstallTypes) ? initialData.uninstallTypes : DEFAULT_UNINSTALL_TYPES,
         checklist: Array.isArray(initialData.checklist) ? initialData.checklist : [],
       });
     }

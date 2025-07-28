@@ -4,38 +4,38 @@
  * con el sistema de calendario que espera EventType[]
  */
 
+// Firebase imports
 import { Firestore } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
+
+// Types imports
 import type { EventType } from '@/types/event';
 import type { ProjectEventType } from '@/types/project';
+
+// Services imports
 import { getProjectEvents } from './projectEventService';
+
+// Utils imports
 import { generateEventDisplayName } from '@/utils/eventValidation';
 
 /**
  * Convierte un ProjectEventType a EventType para compatibilidad con el calendario
  */
 function convertProjectEventToCalendarEvent(projectEvent: ProjectEventType): EventType {
-  // Generar nombre descriptivo para el calendario
-  const eventName = `${projectEvent.clientName || 'Cliente'} - ${projectEvent.description || 'Evento de proyecto'}`;
+  // Generar nombre usando la misma lógica que ClientDisplay en calendar-event.tsx
+  const getEventName = (): string => {
+    // Misma lógica que ClientDisplay: clientName o glosa como fallback
+    return projectEvent.clientName?.trim() || projectEvent.glosa?.trim() || 'Cliente no especificado';
+  };
   
-  // Determinar color basado en el estado del proyecto
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'ingresado': return '#3b82f6'; // blue-500
-      case 'programar': return '#f59e0b'; // amber-500  
-      case 'fabricación': return '#8b5cf6'; // violet-500
-      case 'montaje': return '#10b981'; // emerald-500
-      case 'sello': return '#06b6d4'; // cyan-500
-      case 'continuación': return '#f97316'; // orange-500
-      case 'complicación': return '#ef4444'; // red-500
-      case 'completado': return '#22c55e'; // green-500
-      default: return '#6b7280'; // gray-500
-    }
+  // Todos los proyectos usan el mismo color azul (según calendar-event.tsx)
+  const getProjectColor = (): string => {
+    return 'hsl(221, 83%, 53%)'; // Azul uniforme para todos los proyectos
   };
 
   return {
     id: projectEvent.id,
-    name: eventName,
+    name: getEventName(),
     startDate: projectEvent.eventDate,
     endDate: projectEvent.eventDate, // Eventos de proyecto son de un día
     description: [
@@ -45,12 +45,13 @@ function convertProjectEventToCalendarEvent(projectEvent: ProjectEventType): Eve
       projectEvent.uninstall ? 'Requiere desinstalación' : '',
       projectEvent.phone ? `Tel: ${projectEvent.phone}` : '',
     ].filter(Boolean).join(' • '),
-    color: getStatusColor(projectEvent.status),
+    color: getProjectColor(),
     type: 'Proyecto',
     referenceId: projectEvent.projectId,
     status: projectEvent.status,
     location: projectEvent.fullAddress?.textoCompleto,
     clientName: projectEvent.clientName,
+    glosa: projectEvent.glosa,
     // Campos específicos del proyecto para acceso posterior
     windowsCount: projectEvent.windowsCount,
     squareMeters: projectEvent.squareMeters,
@@ -61,6 +62,7 @@ function convertProjectEventToCalendarEvent(projectEvent: ProjectEventType): Eve
     squareMeters?: number; 
     uninstall?: boolean;
     checklist?: any[];
+    glosa?: string;
   };
 }
 

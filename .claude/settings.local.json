@@ -18,7 +18,9 @@
       "Bash(grep:*)",
       "WebFetch(domain:www.geeky-gadgets.com)",
       "Bash(taskkill:*)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }

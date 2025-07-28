@@ -1,3 +1,12 @@
+/**
+ * TIPOS PARA CALENDARIO - ARQUITECTURA ESPECÍFICA POR DOMINIO
+ * 
+ * EventType es usado por el sistema de calendario para mostrar eventos
+ * de diferentes dominios (ProjectEvents, etc.) de manera unificada.
+ * 
+ * Nota: Este tipo no representa una colección Firestore directa,
+ * sino una abstracción para la visualización en calendario.
+ */
 export interface EventType {
   id: string;
   name: string;
@@ -11,7 +20,7 @@ export interface EventType {
   status?: string; // Estado actual del evento (obtenido del registro referenciado)
   location?: string; // Ubicación del evento
   
-  // Campos específicos para eventos de tipo Proyecto
+  // Campos específicos para eventos de tipo Proyecto (extendidos desde ProjectEvents)
   clientName?: string; // Nombre del cliente
   glosa?: string; // Información adicional del cliente
   phone?: string; // Teléfono de contacto

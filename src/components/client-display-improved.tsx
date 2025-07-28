@@ -16,13 +16,13 @@ interface ClientDisplayProps extends React.HTMLAttributes<HTMLDivElement> {
 /**
  * Componente mejorado para mostrar el nombre del cliente con estados de carga
  */
-export function ClientDisplay({ 
+export const ClientDisplay: React.FC<ClientDisplayProps> = ({ 
   clientName, 
   glosa, 
   className,
   showLoading = false,
   ...props 
-}: ClientDisplayProps) {
+}) => {
   // Si no hay nombre de cliente pero hay glosa, usamos la glosa como texto principal
   const displayText = clientName?.trim() || glosa?.trim() || 'Cliente no especificado';
   // Mostrar la glosa solo si es diferente al texto principal
