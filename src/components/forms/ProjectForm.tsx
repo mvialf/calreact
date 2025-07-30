@@ -93,96 +93,64 @@ import {
 import { getClients as fetchClientsFromService } from '@/services/clientService';
 import { FormattedAddress } from '@/types/project'; // Importar el tipo FormattedAddress
 
-// Esquema para la dirección
-const addressSchema = z.object({
-  textoCompleto: z.string().min(1, 'La dirección es requerida'),
-  placeId: z.string({ required_error: 'Place ID no es válido' }).min(1, 'Place ID es requerido'),
-  coordenadas: z.object({
-    latitude: z.number(),
-    longitude: z.number(),
-  }),
-  componentes: z
-    .object({
-      calle: z.string().optional(),
-      numero: z.string().optional(),
-      comuna: z.string().optional(),
-      ciudad: z.string().optional(),
-      region: z.string().optional(),
-      pais: z.string().optional(),
-      codigoPostal: z.string().optional(),
-    })
-    .optional(),
-  detalle: z.string().optional(),
-});
+// Esquemas de validación centralizados
+import { 
+  requiredString,
+  optionalString,
+  requiredDate,
+  dynamicEnum,
+  phoneSchema,
+  fullAddressSchema,
+  preprocessedInteger,
+  preprocessedNumber,
+  commonProjectFields,
+  conditionalRequired
+} from '@/utils/validation-schemas';
+
+// Esquemas específicos para ProjectForm
+const subtotalSchema = z.preprocess(
+  (val) =>
+    typeof val === 'string' ? parseFloat(val.replace(/\./g, '').replace(',', '.')) : val,
+  z
+    .number({ invalid_type_error: 'Subtotal debe ser un número.' })
+    .min(0, 'Subtotal no puede ser negativo.')
+);
+
+const taxRateSchema = z.preprocess(
+  (val) => {
+    if (val === '') return undefined;
+    if (typeof val === 'string') return parseFloat(val.replace(',', '.'));
+    return val;
+  },
+  z
+    .number({ invalid_type_error: 'IVA debe ser un número.' })
+    .min(0, 'El IVA no puede ser negativo.')
+    .max(100, 'El IVA no puede ser mayor a 100%')
+    .refine(
+      (val) => {
+        const decimalPart = String(val).split('.')[1];
+        return !decimalPart || decimalPart.length <= 2;
+      },
+      { message: 'Máximo 2 decimales permitidos' }
+    )
+    .default(19)
+);
 
 // Esquema principal del formulario
 export const projectFormSchema = z
   .object({
-    clientId: z.string().min(1, 'Cliente es requerido.'),
-    projectNumber: z.string().min(1, 'Número de proyecto es requerido.'),
-    glosa: z.string().optional(),
-    date: z.date({ required_error: 'Fecha de inicio es requerida.' }),
-    status: z.enum(PROJECT_STATUS_OPTIONS as unknown as [string, ...string[]], {
-      required_error: 'Estado es requerido.',
-    }),
-    subtotal: z.preprocess(
-      (val) =>
-        typeof val === 'string' ? parseFloat(val.replace(/\./g, '').replace(',', '.')) : val,
-      z
-        .number({ invalid_type_error: 'Subtotal debe ser un número.' })
-        .min(0, 'Subtotal no puede ser negativo.')
-    ),
-    taxRate: z.preprocess(
-      (val) => {
-        if (val === '') return undefined;
-        if (typeof val === 'string') return parseFloat(val.replace(',', '.'));
-        return val;
-      },
-      z
-        .number({ invalid_type_error: 'IVA debe ser un número.' })
-        .min(0, 'El IVA no puede ser negativo.')
-        .max(100, 'El IVA no puede ser mayor a 100%')
-        .refine(
-          (val) => {
-            const decimalPart = String(val).split('.')[1];
-            return !decimalPart || decimalPart.length <= 2;
-          },
-          { message: 'Máximo 2 decimales permitidos' }
-        )
-        .default(19)
-    ),
-    windowsCount: z.preprocess(
-      (val) =>
-        val === '' || val === undefined || val === null
-          ? 0
-          : typeof val === 'string'
-            ? parseInt(val, 10)
-            : val,
-      z.number().int().min(0).optional().default(0)
-    ),
-    squareMeters: z.preprocess(
-      (val) =>
-        val === '' || val === undefined || val === null
-          ? 0
-          : typeof val === 'string'
-            ? parseFloat(val)
-            : val,
-      z.number().min(0).optional().default(0)
-    ),
-    phone: z.string().optional().refine(value => {
-      if (!value || value.trim() === '') return true; // Allow empty value
-      
-      // Limpiar el valor de espacios y caracteres especiales excepto +
-      const cleanValue = value.replace(/[^+\d]/g, '');
-      
-      // Validar formato E.164 (con código de país) o formato local chileno
-      const e164Format = /^\+[1-9]\d{1,14}$/.test(cleanValue);
-      const localChileanFormat = /^[89]\d{8}$/.test(cleanValue); // 9 dígitos empezando con 8 o 9
-      
-      return e164Format || localChileanFormat;
-    }, 'Número de teléfono inválido. Use formato +56912345678 o 912345678.'),
-    fullAddress: addressSchema.optional(),
-    description: z.string().optional(),
+    clientId: requiredString('Cliente'),
+    projectNumber: requiredString('Número de proyecto'),
+    glosa: optionalString,
+    date: requiredDate('Fecha de inicio'),
+    status: dynamicEnum(PROJECT_STATUS_OPTIONS, 'Estado'),
+    subtotal: subtotalSchema,
+    taxRate: taxRateSchema,
+    windowsCount: preprocessedInteger("Número de ventanas"),
+    squareMeters: preprocessedNumber("Metros cuadrados"),
+    phone: phoneSchema,
+    fullAddress: fullAddressSchema,
+    description: optionalString,
     uninstall: z.boolean().default(false),
     uninstallTypes: z.array(z.string()).optional().default([]),
   })

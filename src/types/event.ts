@@ -21,6 +21,7 @@ export interface EventType {
   location?: string; // Ubicación del evento
   
   // Campos específicos para eventos de tipo Proyecto (extendidos desde ProjectEvents)
+  projectNumber?: string; // Número del proyecto
   clientName?: string; // Nombre del cliente
   glosa?: string; // Información adicional del cliente
   phone?: string; // Teléfono de contacto

@@ -27,6 +27,7 @@ export interface FormattedAddress {
   componentes?: AddressComponents;
   detalle?: string;
   informacionAdicional?: string; // Para información adicional como número de departamento, block, etc.
+  comune?: string; // Campo directo para acceso rápido a la comuna
 }
 
 export type ProjectStatus = ProjectStatusConstant;
@@ -107,6 +108,7 @@ export interface ProjectEventType {
   uninstallTypes?: string[];
   uninstallOther?: string;
   clientName?: string; // Copiado del proyecto para facilitar consultas
+  glosa?: string; // Short note or summary, similar to description but often more technical or brief
   checklist?: Array<{
     id: string;
     description: string;

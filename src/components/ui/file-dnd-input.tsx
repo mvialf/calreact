@@ -5,7 +5,7 @@ import { UploadCloud } from 'lucide-react';
 import type { FC, ReactNode, DragEvent, ChangeEvent } from 'react';
 import React, { useCallback, useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 
 interface FileDndInputProps {
   id: string;

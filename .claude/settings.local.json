@@ -20,7 +20,12 @@
       "Bash(taskkill:*)",
       "WebFetch(domain:localhost)",
       "WebFetch(domain:docs.anthropic.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(npm test)",
+      "Bash(diff:*)",
+      "WebFetch(domain:susomejias.dev)"
     ],
     "deny": []
   }

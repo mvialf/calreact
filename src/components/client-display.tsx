@@ -3,15 +3,50 @@
 import { cn } from '@/lib/utils';
 import type { ProjectType } from '@/types/project';
 
+/**
+ * Props para el componente ClientDisplay
+ */
 interface ClientDisplayProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Nombre del cliente a mostrar */
   clientName?: string;
+  /** Información adicional o glosa del cliente */
   glosa?: string;
+  /** Clases CSS adicionales */
   className?: string;
 }
 
 /**
  * Componente para mostrar el nombre del cliente junto con información adicional
  * de manera consistente en toda la aplicación.
+ * 
+ * @description
+ * Este componente maneja la visualización de información de clientes con la siguiente lógica:
+ * - Prioriza el `clientName` si está disponible
+ * - Usa `glosa` como fallback si no hay `clientName`
+ * - Muestra "Cliente no especificado" si no hay ninguno de los dos
+ * - Muestra la glosa como información adicional solo si es diferente al texto principal
+ * 
+ * @example
+ * ```tsx
+ * // Caso básico con nombre de cliente
+ * <ClientDisplay clientName="Juan Pérez" />
+ * 
+ * // Con glosa adicional
+ * <ClientDisplay 
+ *   clientName="Juan Pérez" 
+ *   glosa="Empresa ABC"
+ *   className="text-lg"
+ * />
+ * 
+ * // Solo con glosa (se usa como texto principal)
+ * <ClientDisplay glosa="Cliente VIP" />
+ * 
+ * // Sin información (muestra fallback)
+ * <ClientDisplay />
+ * ```
+ * 
+ * @param props - Props del componente ClientDisplay
+ * @returns JSX.Element renderizado
  */
 export function ClientDisplay({ 
   clientName, 

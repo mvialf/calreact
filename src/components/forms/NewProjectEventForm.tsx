@@ -36,18 +36,21 @@ import {
   DEFAULT_UNINSTALL_TYPES
 } from '@/constants/defaults';
 
+// Esquemas de validación centralizados
+import { 
+  optionalString,
+  phoneSchema,
+  fullAddressSchema,
+  requiredString,
+  commonProjectFields
+} from '@/utils/validation-schemas';
+
 // Esquema de validación para el formulario de evento de proyecto
 const formSchema = z.object({
-  projectId: z.string().optional(),
-  description: z.string().optional(),
-  phone: z.string().optional(),
-  fullAddress: z.any().optional(), // FormattedAddress | null
-  status: z.string().min(1, "El estado es requerido"),
+  projectId: optionalString,
+  status: requiredString("El estado"),
   eventDate: z.date().optional(),
-  windowsCount: z.number().int().min(0, "El número de ventanas debe ser positivo").default(0),
-  squareMeters: z.number().min(0, "Los metros cuadrados deben ser positivos").default(0),
-  uninstall: z.boolean().default(false),
-  uninstallTypes: z.array(z.string()).optional().default([]),
+  ...commonProjectFields,
 });
 
 // Tipo para los valores del formulario

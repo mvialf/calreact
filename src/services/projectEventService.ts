@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Servicio para gestionar eventos de proyecto específicos
+ * 
+ * Este servicio implementa la arquitectura específica por dominio para eventos de proyecto,
+ * proporcionando operaciones CRUD con validación, sanitización y sincronización automática
+ * de datos de cliente.
+ * 
+ * @version 2.0.0
+ * @since Enero 2025 - Refactorización arquitectura específica por dominio
+ * @author Sistema Cobralon-FB
+ */
+
 // src/services/projectEventService.ts
 import {
   collection,
@@ -27,6 +39,7 @@ import { getProjectById } from './projectService';
 import { syncSingleProjectClientName } from './clientSyncService';
 import { validateProjectEventData, sanitizeProjectEventData } from '@/utils/eventValidation';
 
+/** Nombre de la colección de eventos de proyecto en Firestore */
 const PROJECT_EVENTS_COLLECTION = 'projectEvents';
 
 /**
@@ -93,9 +106,44 @@ export const getProjectEventById = async (eventId: string): Promise<ProjectEvent
 
 /**
  * Crea un nuevo evento de proyecto con sincronización automática de cliente
+ * 
+ * @description
+ * Esta función implementa un flujo completo de creación de eventos de proyecto:
+ * 1. Valida los datos del evento usando reglas de negocio específicas
+ * 2. Obtiene y valida la existencia del proyecto padre
+ * 3. Sincroniza automáticamente el nombre del cliente si es necesario
+ * 4. Sanitiza y normaliza los datos del evento
+ * 5. Guarda el evento en Firestore con timestamps automáticos
+ * 
+ * @example
+ * ```typescript
+ * const newEvent = await createProjectEvent({
+ *   projectId: 'project-123',
+ *   eventDate: new Date('2025-02-15'),
+ *   description: 'Instalación programada',
+ *   phone: '+56912345678',
+ *   fullAddress: {
+ *     textoCompleto: 'Av. Providencia 123, Santiago',
+ *     coordenadas: { latitude: -33.4489, longitude: -70.6693 },
+ *     placeId: 'place-123',
+ *     comune: 'Providencia'
+ *   },
+ *   status: 'cotizado',
+ *   windowsCount: 5,
+ *   squareMeters: 25.5,
+ *   uninstall: false
+ * });
+ * ```
+ * 
  * @param eventData - Datos del evento sin id, createdAt, updatedAt
- * @param firestore - Instancia de Firestore (opcional)
- * @returns Promesa con el evento creado
+ * @param firestore - Instancia de Firestore (opcional, usa db por defecto)
+ * @returns Promesa que resuelve con el evento creado incluyendo id y timestamps
+ * 
+ * @throws {Error} Cuando los datos del evento son inválidos
+ * @throws {Error} Cuando el proyecto padre no existe
+ * @throws {Error} Cuando falla la operación de guardado en Firestore
+ * 
+ * @since v2.0.0 - Arquitectura específica por dominio
  */
 export const createProjectEvent = async (
   eventData: Omit<ProjectEventType, 'id' | 'createdAt' | 'updatedAt'>,

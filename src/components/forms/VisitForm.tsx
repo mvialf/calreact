@@ -29,41 +29,25 @@ import { AddressInput } from '@/components/ui/addressInput';
 import { InputDate } from '@/components/ui/date-picker';
 import type { FormattedAddress } from '@/types/project';
 
-// Esquema para la dirección completa
-export const fullAddressSchema = z.union([
-  z.object({
-    textoCompleto: z.string(),
-    placeId: z.string().min(1, 'Place ID es requerido'),
-    coordenadas: z.object({
-      latitude: z.number(),
-      longitude: z.number(),
-    }),
-    componentes: z.object({
-      calle: z.string().optional(),
-      numero: z.string().optional(),
-      comuna: z.string().optional(),
-      ciudad: z.string().optional(),
-      region: z.string().optional(),
-      pais: z.string().optional(),
-      codigoPostal: z.string().optional(),
-    }).optional(),
-  }),
-  z.null()
-]).optional();
+// Esquemas de validación centralizados
+import { 
+  requiredString, 
+  phoneSchema, 
+  dynamicEnum,
+  simpleAddressSchema,
+  optionalString,
+  requiredDate
+} from '@/utils/validation-schemas';
 
 const formSchema = z.object({
-  name: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
-  phone: z.string().min(9, { message: 'El teléfono debe tener al menos 9 dígitos.' }),
-  status: z.enum(VISIT_STATUS_OPTIONS as [string, ...string[]], {
-    required_error: 'Debe seleccionar un estado.',
-  }),
-  fullAddress: fullAddressSchema,
-  address: z.string().optional(), // Campo opcional para compatibilidad
-  municipality: z.string().optional(), // Campo opcional para compatibilidad
-  observations: z.string().optional(),
-  scheduledDate: z.date({
-    required_error: 'La fecha programada es requerida',
-  }),
+  name: requiredString('El nombre', 3),
+  phone: phoneSchema,
+  status: dynamicEnum(VISIT_STATUS_OPTIONS, 'un estado'),
+  fullAddress: simpleAddressSchema,
+  address: optionalString, // Campo opcional para compatibilidad
+  municipality: optionalString, // Campo opcional para compatibilidad  
+  observations: optionalString,
+  scheduledDate: requiredDate('La fecha programada'),
 });
 
 export type VisitFormValues = z.infer<typeof formSchema>;

@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SquarePen, Trash2, PlusCircle, Users, Loader2, GanttChartSquare, DollarSign, FileText } from 'lucide-react';
 import ClientModal from '@/components/client-modal';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { normalizeSearchText } from '@/utils/search-utils';
 
 // Skeleton for table rows

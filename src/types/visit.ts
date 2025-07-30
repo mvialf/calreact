@@ -13,7 +13,7 @@ export const VISIT_STATUS_OPTIONS: VisitStatus[] = [
 export interface Visit {
   id: string;
   name: string;
-  phone: string;
+  phone?: string;
   status: VisitStatus;
   address?: string;
   municipality?: string;

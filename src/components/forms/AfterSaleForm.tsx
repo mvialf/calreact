@@ -40,24 +40,23 @@ import { addAfterSales } from "@/services/afterSalesService";
 import type { ProjectType } from "@/types/project";
 import type { FormattedAddress } from "@/types/project";
 
+// Esquemas de validación centralizados
+import { 
+  requiredSelection, 
+  descriptionSchema, 
+  requiredDate,
+  phoneSchema,
+  tasksArraySchema
+} from "@/utils/validation-schemas";
+
 // Schema de validación
 const formSchema = z.object({
-  projectId: z.string().min(1, "Debe seleccionar un proyecto"),
-  description: z.string().min(10, "La descripción debe tener al menos 10 caracteres"),
-  date: z.date({
-    required_error: "La fecha es requerida",
-  }),
-  phone: z.string().optional(),
+  projectId: requiredSelection("un proyecto"),
+  description: descriptionSchema(10),
+  date: requiredDate("La fecha"),
+  phone: phoneSchema,
   address: z.any().optional(), // FormattedAddress | null
-  tasks: z.array(
-    z.object({
-      id: z.string(),
-      description: z.string().min(1, "La tarea no puede estar vacía"),
-      isCompleted: z.boolean().default(false),
-      completedAt: z.date().optional(),
-      createdAt: z.date().optional(),
-    })
-  ).default([]),
+  tasks: tasksArraySchema,
 });
 
 export type AfterSaleFormValues = z.infer<typeof formSchema>;

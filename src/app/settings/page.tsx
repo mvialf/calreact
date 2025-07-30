@@ -18,7 +18,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { addClient, type ClientImportData } from '@/services/clientService';
 import { createProject } from '@/services/projectService';
 import { addPayment } from '@/services/paymentService';

@@ -45,7 +45,7 @@ import {
 import { DollarSign, Edit, Trash2, GanttChartSquare, Search, Loader2, CreditCard } from 'lucide-react';
 import TablePagination from '@/components/table/table-pagination';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { normalizeSearchText } from '@/utils/search-utils';
 
 const formatCurrency = (amount: number | undefined | null) => {

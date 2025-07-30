@@ -41,7 +41,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { updatePayment } from '@/services/paymentService';
 import type { Payment } from '@/types/payment';

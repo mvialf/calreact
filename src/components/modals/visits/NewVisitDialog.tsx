@@ -8,7 +8,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VisitForm, type VisitFormValues } from '@/components/forms/VisitForm';
 import { addVisit, type VisitStatus } from '@/services/visitService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { ModalLayout } from '@/components/modals/modalLayout';
 
 export function NewVisitDialog() {

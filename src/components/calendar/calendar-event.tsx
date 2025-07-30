@@ -8,7 +8,7 @@ import { isValid } from 'date-fns';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import type React from 'react';
-import { ClientDisplay } from '@/components/client-display';
+import { ProjectClientDisplay } from '@/components/client-display';
 
 interface CalendarEventProps {
   event: EventType;
@@ -192,14 +192,23 @@ export function CalendarEvent({
     >
       {event.type === 'Proyecto' ? (
         <div className="space-y-1">
-          <ClientDisplay 
-            clientName={event.clientName || 'Cliente no especificado'}
-            glosa={event.glosa || ''}
+          <ProjectClientDisplay 
+            project={{
+              projectNumber: event.projectNumber,
+              clientName: event.clientName,
+              glosa: event.glosa
+            }}
             className="text-foreground text-xs"
           />
           {event.fullAddress?.comune && (
             <p className="text-xs text-muted-foreground truncate">
               {event.fullAddress.comune}
+            </p>
+          )}
+          {/* Fallback: mostrar desde componentes si existe */}
+          {!event.fullAddress?.comune && event.fullAddress?.componentes?.comuna && (
+            <p className="text-xs text-muted-foreground truncate">
+              {event.fullAddress.componentes.comuna}
             </p>
           )}
         </div>

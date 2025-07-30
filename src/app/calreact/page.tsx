@@ -8,7 +8,7 @@ import { CalendarToolbar } from '@/components/calendar/calendar-toolbar';
 import { db } from '@/lib/firebase/client'; // Importar la instancia db configurada
 import { getAllCalendarEvents } from '@/services/calendarEventService';
 import { updateProjectEvent } from '@/services/projectEventService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { normalizeSearchText } from '@/utils/search-utils';
 import { startOfDay, endOfDay, isSameDay, parseISO } from '@/lib/calendar-utils';
 
@@ -94,8 +94,8 @@ export default function CalReactAppPage() {
         console.error("❌ Error al cargar eventos desde Firestore:", error);
         
         // No mostrar toast de error en desarrollo si Firebase no está configurado
-        const isFirebaseNotConfigured = error?.message?.includes?.('your-project-id') || 
-                                        error?.code === 'app/invalid-credential';
+        const isFirebaseNotConfigured = (error as any)?.message?.includes?.('your-project-id') || 
+                                        (error as any)?.code === 'app/invalid-credential';
         
         if (!isFirebaseNotConfigured) {
           toast({ 

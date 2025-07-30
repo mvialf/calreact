@@ -8,7 +8,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AfterSaleForm, type AfterSaleFormValues } from '@/components/forms/AfterSaleForm';
 import { addAfterSales } from '@/services/afterSalesService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { ModalLayout } from '@/components/modals/modalLayout';
 
 export function NewAfterSaleDialog() {

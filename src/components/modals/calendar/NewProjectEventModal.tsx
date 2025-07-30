@@ -7,7 +7,7 @@ import { ModalLayout } from '../modalLayout';
 import { getProjects } from '@/services/projectService';
 import { createProjectEvent } from '@/services/projectEventService';
 import { syncSingleProjectClientName } from '@/services/clientSyncService';
-import { ProjectType } from '@/types/project';
+import { ProjectType, ProjectEventType, ProjectStatus } from '@/types/project';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -186,25 +186,55 @@ export function NewProjectEventModal({
       return;
     }
     
-    // Añadir información adicional del proyecto seleccionado
-    const eventData = {
+    // Datos del formulario con información adicional del proyecto
+    const formDataWithProject: NewProjectEventFormValues = {
       ...data,
       projectId: selectedProject.id,
-      eventDate: data.eventDate || new Date(), // Garantizar que eventDate esté definido
-      status: data.status as any, // Cast para evitar error de tipos
+      eventDate: data.eventDate || new Date(),
       clientName: selectedProject.clientName || data.clientName || 'Cliente pendiente',
       checklist: data.checklist || [],
+      // Asegurar valores por defecto para campos requeridos
+      windowsCount: data.windowsCount ?? 0,
+      squareMeters: data.squareMeters ?? 0,
+      uninstall: data.uninstall ?? false,
+      uninstallTypes: data.uninstallTypes ?? [],
     };
     
-    console.log('🔍 Debug NewProjectEventModal - eventData final:', eventData);
+    console.log('🔍 Debug NewProjectEventModal - formData final:', formDataWithProject);
     
     try {
       // Si autoSave está habilitado, guardar directamente
       if (autoSave) {
         setIsInternalSubmitting(true);
         
+        // Transformar datos del formulario al formato de entidad para createProjectEvent
+        const eventDataForService: Omit<ProjectEventType, 'id' | 'createdAt' | 'updatedAt'> = {
+          projectId: selectedProject.id,
+          eventDate: formDataWithProject.eventDate || new Date(),
+          status: formDataWithProject.status as ProjectStatus,
+          clientName: selectedProject.clientName || formDataWithProject.clientName || 'Cliente pendiente',
+          description: formDataWithProject.description,
+          phone: formDataWithProject.phone,
+          fullAddress: formDataWithProject.fullAddress ? {
+            textoCompleto: formDataWithProject.fullAddress.textoCompleto,
+            placeId: formDataWithProject.fullAddress.placeId,
+            coordenadas: formDataWithProject.fullAddress.coordenadas,
+            componentes: formDataWithProject.fullAddress.componentes,
+            detalle: formDataWithProject.fullAddress.detalle,
+            informacionAdicional: formDataWithProject.fullAddress.informacionAdicional,
+            comune: formDataWithProject.fullAddress.comune
+          } : undefined,
+          windowsCount: formDataWithProject.windowsCount || 0,
+          squareMeters: formDataWithProject.squareMeters || 0,
+          uninstall: formDataWithProject.uninstall || false,
+          uninstallTypes: formDataWithProject.uninstallTypes || [],
+          uninstallOther: formDataWithProject.uninstallOther,
+          glosa: selectedProject.glosa,
+          checklist: formDataWithProject.checklist || [],
+        };
+        
         console.log('🚀 Guardando evento de proyecto automáticamente...');
-        const createdEvent = await createProjectEvent(eventData);
+        const createdEvent = await createProjectEvent(eventDataForService);
         
         toast({
           title: "Evento creado exitosamente",
@@ -225,7 +255,7 @@ export function NewProjectEventModal({
       } else {
         // Si no está en modo autoSave, usar onSubmit externo
         if (typeof onSubmit === 'function') {
-          onSubmit(eventData);
+          onSubmit(formDataWithProject);
         } else {
           throw new Error('No se proporcionó función onSubmit y autoSave está deshabilitado');
         }

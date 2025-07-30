@@ -238,6 +238,7 @@ export function AddressInput({
                   codigoPostal: addressComponents?.postalCode || '',
                 },
                 detalle: place.formatted_address || '',
+                comune: addressComponents?.locality || '', // Campo directo para acceso rápido
               };
 
               // Actualizar el estado

@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { VisitForm, VisitFormValues } from '@/components/forms/VisitForm';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { updateVisit } from '@/services/visitService';
 import type { Visit, VisitStatus } from '@/types/visit';
 import { DEFAULT_VISIT_STATUS } from '@/types/visit';

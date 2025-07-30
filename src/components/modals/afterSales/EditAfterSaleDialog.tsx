@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AfterSaleForm, AfterSaleFormValues } from '@/components/forms/AfterSaleForm';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { updateAfterSales } from '@/services/afterSalesService';
 import type { AfterSales } from '@/types/afterSales';
 import { ModalLayout } from '@/components/modals/modalLayout';

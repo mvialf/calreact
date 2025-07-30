@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ProjectType } from '@/types/project';
 import { PAYMENT_METHODS, type PaymentMethod } from '@/constants/payment';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { formatDateForInput } from '@/utils/date-helpers';
 
 interface PaymentModalProps {

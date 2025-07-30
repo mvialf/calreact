@@ -24,7 +24,7 @@ import { generateEventDisplayName } from '@/utils/eventValidation';
 function convertProjectEventToCalendarEvent(projectEvent: ProjectEventType): EventType {
   // Generar nombre usando la misma lógica que ClientDisplay en calendar-event.tsx
   const getEventName = (): string => {
-    // Misma lógica que ClientDisplay: clientName o glosa como fallback
+    // Usar clientName o glosa como fallback
     return projectEvent.clientName?.trim() || projectEvent.glosa?.trim() || 'Cliente no especificado';
   };
   
@@ -50,8 +50,11 @@ function convertProjectEventToCalendarEvent(projectEvent: ProjectEventType): Eve
     referenceId: projectEvent.projectId,
     status: projectEvent.status,
     location: projectEvent.fullAddress?.textoCompleto,
+    projectNumber: undefined, // TODO: Obtener del proyecto relacionado si es necesario
     clientName: projectEvent.clientName,
-    glosa: projectEvent.glosa,
+    phone: projectEvent.phone,
+    fullAddress: projectEvent.fullAddress, // Incluir fullAddress completo para acceso en el calendario
+    glosa: projectEvent.glosa, // Incluir glosa del proyecto
     // Campos específicos del proyecto para acceso posterior
     windowsCount: projectEvent.windowsCount,
     squareMeters: projectEvent.squareMeters,

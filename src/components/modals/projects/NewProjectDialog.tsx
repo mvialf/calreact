@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ProjectForm } from '@/components/forms/ProjectForm';
 import { createProject } from '@/services/projectService';
 import { addClient } from '@/services/clientService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { ModalLayout } from '@/components/modals/modalLayout';
 import type { ProjectType, ProjectStatus } from '@/types/project';
 import type { ProjectFormValues } from '@/components/forms/ProjectForm';

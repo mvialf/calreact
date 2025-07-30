@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ProjectForm, ProjectFormValues } from '@/components/forms/ProjectForm';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { updateProject } from '@/services/projectService';
 import type { ProjectType, ProjectStatus } from '@/types/project';
 import { ModalLayout } from '@/components/modals/modalLayout';
