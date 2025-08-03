@@ -5,22 +5,42 @@ const createJestConfig = nextJest({
   dir: './',
 });
 
-// Configuración personalizada de Jest
+// Configuración personalizada de Jest (simplificada)
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
 
   /**
-   * 👇 ESTA ES LA LÍNEA CLAVE
-   * Le dice a Jest que ignore todos los node_modules EXCEPTO `lucide-react`.
-   * Esto permite que Babel transforme el código de `lucide-react` para que Jest lo entienda.
+   * Mock para lucide-react ya configurado en src/__mocks__/lucide-react.js
+   * No necesitamos transformIgnorePatterns complejos
    */
-  transformIgnorePatterns: ['/node_modules/(?!(lucide-react)/)'],
 
+  /**
+   * Mapeo de módulos - Next.js ya maneja TypeScript
+   */
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
-    // ...otros mapeos que tengas
   },
+
+  /**
+   * Cobertura de código
+   */
+  collectCoverageFrom: [
+    'src/**/*.{js,jsx,ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/__tests__/**',
+    '!src/__mocks__/**',
+    '!src/types/**',
+  ],
+
+  /**
+   * Configuración de reportes y rendimiento
+   */
+  coverageReporters: ['text', 'lcov', 'html'],
+  coverageDirectory: 'coverage',
+  testTimeout: 10000,
+  clearMocks: true,
+  restoreMocks: true,
 };
 
 module.exports = createJestConfig(customJestConfig);

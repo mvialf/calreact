@@ -1,19 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/use-toast';
-import { Eye, Edit, Phone, MapPin, Clock, GanttChartSquare, MoreHorizontal, Trash2, Search, Filter, Loader2 } from 'lucide-react';
+import { Eye, Edit, Phone, MapPin, Clock, GanttChartSquare, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +27,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Visit, getVisits, deleteVisit, VisitStatus } from '@/services/visitService';
 import { NewVisitDialog, EditVisitDialog } from '@/components/modals/visits';
+import { PageTableLayout, type TableColumn } from '@/components/layout/PageTableLayout';
 
 const getStatusVariant = (status: VisitStatus) => {
   switch (status) {
@@ -64,6 +56,9 @@ export default function VisitsPage() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
 
   // Cargar visitas desde Firestore
   useEffect(() => {
@@ -143,27 +138,135 @@ export default function VisitsPage() {
   };
 
   // Filtrar visitas por término de búsqueda y estado
-  const filteredVisits = visits.filter(visit => {
-    if (!visit) return false;
-    
-    const searchLower = searchTerm.toLowerCase();
-    const name = visit.name || '';
-    const phone = visit.phone || '';
-    const address = visit.address || '';
-    
-    const matchesSearch = 
-      name.toLowerCase().includes(searchLower) ||
-      phone.includes(searchTerm) ||
-      address.toLowerCase().includes(searchLower);
+  const filteredVisits = useMemo(() => {
+    return visits.filter(visit => {
+      if (!visit) return false;
       
-    const matchesStatus = selectedStatus === 'all' || visit.status === selectedStatus;
-    
-    return matchesSearch && matchesStatus;
-  });
+      const searchLower = searchTerm.toLowerCase();
+      const name = visit.name || '';
+      const phone = visit.phone || '';
+      const address = visit.address || '';
+      
+      const matchesSearch = 
+        name.toLowerCase().includes(searchLower) ||
+        phone.includes(searchTerm) ||
+        address.toLowerCase().includes(searchLower);
+        
+      const matchesStatus = selectedStatus === 'all' || visit.status === selectedStatus;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [visits, searchTerm, selectedStatus]);
+
+  // Paginación
+  const paginatedVisits = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredVisits.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredVisits, currentPage, itemsPerPage]);
+
+  // Selección de filas
+  const handleSelectRow = (id: string) => {
+    setSelectedRows(prev => prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]);
+  };
+
+  const handleSelectAll = (isChecked: boolean) => {
+    setSelectedRows(isChecked ? paginatedVisits.map(visit => visit.id || '') : []);
+  };
 
   const formatDate = (date: Date) => {
     return format(date, 'dd/MM/yyyy', { locale: es });
   };
+
+  // Definir las columnas de la tabla
+  const columns: TableColumn<Visit>[] = [
+    {
+      key: 'name',
+      label: 'Nombre',
+      render: (visit) => <span className="font-medium">{visit.name}</span>
+    },
+    {
+      key: 'phone',
+      label: 'Teléfono',
+      render: (visit) => (
+        <div className="flex items-center">
+          <Phone className="mr-1 h-4 w-4 text-muted-foreground" />
+          {visit.phone}
+        </div>
+      )
+    },
+    {
+      key: 'address',
+      label: 'Dirección',
+      render: (visit) => (
+        <div className="flex items-center">
+          <MapPin className="mr-1 h-4 w-4 text-muted-foreground" />
+          <span className="truncate max-w-[200px]" title={visit.address}>
+            {visit.address}
+          </span>
+        </div>
+      )
+    },
+    {
+      key: 'status',
+      label: 'Estado',
+      render: (visit) => (
+        <Badge className={getStatusVariant(visit.status)}>
+          {visit.status}
+        </Badge>
+      )
+    },
+    {
+      key: 'scheduledDate',
+      label: 'Fecha Programada',
+      render: (visit) => (
+        <div className="flex items-center">
+          <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
+          {formatDate(new Date(visit.scheduledDate))}
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Acciones',
+      align: 'right',
+      render: (visit) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon2">
+              <span className="sr-only">Abrir menú</span>
+              <GanttChartSquare className="h-6 w-6" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleViewDetails(visit.id)}>
+              <Eye className="mr-2 h-4 w-4" />
+              <span>Ver detalles</span>
+            </DropdownMenuItem>
+            <EditVisitDialog 
+              visit={visit}
+              onSuccess={handleEditSuccess}
+            >
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <Edit className="mr-2 h-4 w-4" />
+                <span>Editar</span>
+              </DropdownMenuItem>
+            </EditVisitDialog>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-red-600 focus:text-red-600"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(visit);
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span>Eliminar</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    }
+  ];
 
   // Mostrar mensaje de carga
   if (loading) {
@@ -178,7 +281,7 @@ export default function VisitsPage() {
   // Mostrar mensaje de error
   if (error) {
     return (
-      <div className="rounded-md bg-destructive/10 p-4 text-destructive">
+      <div className="text-red-500 p-4">
         <p>{error}</p>
       </div>
     );
@@ -195,140 +298,31 @@ export default function VisitsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Visitas</h1>
-          <p className="text-muted-foreground">
-            Gestiona las visitas de clientes a tus proyectos
-          </p>
-        </div>
-        <NewVisitDialog />
-      </div>
-
-      <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-        <div className="p-4 flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-          <div className="relative w-full md:max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar visitas..."
-              className="w-full pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" className="h-9">
-              <Filter className="mr-2 h-4 w-4" />
-              Filtros
-            </Button>
-          </div>
-        </div>
-
-        <div className="border-t">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>
-                  <div className="flex items-center">
-                    <Phone className="mr-1 h-4 w-4 text-muted-foreground" />
-                    <span>Teléfono</span>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">
-                    <MapPin className="mr-1 h-4 w-4 text-muted-foreground" />
-                    <span>Dirección</span>
-                  </div>
-                </TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>
-                  <div className="flex items-center">
-                    <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
-                    <span>Fecha Programada</span>
-                  </div>
-                </TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredVisits.length > 0 ? (
-                filteredVisits.map((visit) => (
-                  <TableRow key={visit.id}>
-                    <TableCell className="font-medium">{visit.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        {visit.phone}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <span className="truncate max-w-[200px]" title={visit.address}>
-                          {visit.address}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusVariant(visit.status)}>
-                        {visit.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        {formatDate(new Date(visit.scheduledDate))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menú</span>
-                            <GanttChartSquare className="h-6 w-6" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewDetails(visit.id)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            <span>Ver detalles</span>
-                          </DropdownMenuItem>
-                          <EditVisitDialog 
-                            visit={visit}
-                            onSuccess={handleEditSuccess}
-                          >
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              <span>Editar</span>
-                            </DropdownMenuItem>
-                          </EditVisitDialog>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(visit);
-                            }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Eliminar</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    No se encontraron visitas
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+    <>
+      <PageTableLayout
+        title="Visitas"
+        actionButton={<NewVisitDialog />}
+        searchPlaceholder="Buscar visitas..."
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        columns={columns}
+        data={paginatedVisits}
+        loading={loading}
+        emptyStateTitle="No se encontraron visitas"
+        emptyStateSubtitle="No hay datos que coincidan con los filtros actuales."
+        selectable={true}
+        selectedRows={selectedRows}
+        onSelectRow={handleSelectRow}
+        onSelectAll={handleSelectAll}
+        getRowId={(visit) => visit.id || ''}
+        pagination={{
+          currentPage,
+          itemsPerPage,
+          totalItems: filteredVisits.length,
+          onPageChange: setCurrentPage,
+          onPageSizeChange: setItemsPerPage
+        }}
+      />
 
       {/* Diálogo de confirmación para eliminar */}
       <AlertDialog open={!!visitToDelete} onOpenChange={(open) => !open && setVisitToDelete(null)}>
@@ -351,7 +345,7 @@ export default function VisitsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
 

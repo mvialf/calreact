@@ -1,7 +1,5 @@
 "use client";
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AfterSales } from '@/types/afterSales';
 import type { ProjectType } from '@/types/project';
@@ -10,25 +8,12 @@ import { toast } from '@/components/ui/use-toast';
 import { format as formatDate } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ProjectClientDisplay } from '@/components/client-display';
-import { formatCurrency, formatClientDisplay } from '@/utils/format-helpers';
 
 // Importación del servicio afterSalesService con soporte para instancia de Firestore
-import { db } from '@/lib/firebase/client';
 import { getAfterSalesForProject, deleteAfterSales } from '@/services/afterSalesService';
 
 // Componentes de UI
-
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -56,6 +41,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { PageTableLayout, type TableColumn } from '@/components/layout/PageTableLayout';
 
 // Estados definidos para postventas
 const AFTERSALES_STATUS_OPTIONS = [
@@ -105,12 +91,14 @@ const getAllAfterSales = async () => {
 };
 
 export default function AfterSalesPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [isDetailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedAfterSale, setSelectedAfterSale] = useState<AfterSales | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
 
   const handleDeleteClick = (afterSale: AfterSales) => {
     setSelectedAfterSale(afterSale);
@@ -172,100 +160,111 @@ export default function AfterSalesPage() {
     });
   }, [afterSalesData, projectsMap, searchQuery]);
 
-  return (
-    <div className="flex flex-col h-full p-4 md:p-6 lg:p-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          
-          <h2 className="text-3xl font-bold tracking-tight">Postventas</h2>
-        </div>
-        <NewAfterSaleDialog />
-      </div>
-      
-      <div className="mt-4">
-        <Input
-          placeholder="Buscar postventas..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
+  // Paginación
+  const paginatedAfterSales = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAfterSales.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAfterSales, currentPage, itemsPerPage]);
 
-      <Card className="w-max mt-6">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-80">Proyecto</TableHead>
-                <TableHead className="w-40 text-center">Ingreso</TableHead>
-                <TableHead className="w-40 text-center">Estado</TableHead>
-                <TableHead className="w-40 text-center">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoadingAfterSales ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center">
-                    Cargando postventas...
-                  </TableCell>
-                </TableRow>
-              ) : filteredAfterSales.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center">
-                    No se encontraron registros de postventa.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredAfterSales.map((afterSale) => {
-                  const project = projectsMap[afterSale.projectId];
-                  return (
-                    <TableRow key={afterSale.id}>
-                      <TableCell className="font-medium">
-                        {project ? (
-                          <ProjectClientDisplay project={project} />
-                        ) : (
-                          <span>Proyecto desconocido</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {afterSale.entryDate ? formatDate(afterSale.entryDate, 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant={getAfterSaleStatusBadgeVariant(afterSale.afterSalesStatus || '')}>
-                          {afterSale.afterSalesStatus || 'Sin estado'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <GanttChartSquare className="h-6 w-6" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleDetailsClick(afterSale)}>
-                              <Eye className="mr-2 h-4 w-4" /> Ver detalles
-                            </DropdownMenuItem>
-                            <EditAfterSaleDialog afterSale={afterSale}>
-                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                <Wrench className="mr-2 h-4 w-4" /> Editar
-                              </DropdownMenuItem>
-                            </EditAfterSaleDialog>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleDeleteClick(afterSale)} className="text-destructive">
-                              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+  // Selección de filas
+  const handleSelectRow = (id: string) => {
+    setSelectedRows(prev => prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]);
+  };
+
+  const handleSelectAll = (isChecked: boolean) => {
+    setSelectedRows(isChecked ? paginatedAfterSales.map(item => item.id) : []);
+  };
+
+  // Definir las columnas de la tabla
+  const columns: TableColumn<AfterSales>[] = [
+    {
+      key: 'projectId',
+      label: 'Proyecto',
+      width: 'w-80',
+      render: (afterSale) => {
+        const project = projectsMap[afterSale.projectId];
+        return project ? (
+          <ProjectClientDisplay project={project} />
+        ) : (
+          <span>Proyecto desconocido</span>
+        );
+      }
+    },
+    {
+      key: 'entryDate',
+      label: 'Ingreso',
+      align: 'center',
+      width: 'w-40',
+      render: (afterSale) => afterSale.entryDate ? formatDate(afterSale.entryDate, 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'
+    },
+    {
+      key: 'afterSalesStatus',
+      label: 'Estado',
+      align: 'center',
+      width: 'w-40',
+      render: (afterSale) => (
+        <Badge variant={getAfterSaleStatusBadgeVariant(afterSale.afterSalesStatus || '')}>
+          {afterSale.afterSalesStatus || 'Sin estado'}
+        </Badge>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Acciones',
+      align: 'center',
+      width: 'w-40',
+      render: (afterSale) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon2">
+              <GanttChartSquare className="h-6 w-6" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleDetailsClick(afterSale)}>
+              <Eye className="mr-2 h-4 w-4" /> Ver detalles
+            </DropdownMenuItem>
+            <EditAfterSaleDialog afterSale={afterSale}>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <Wrench className="mr-2 h-4 w-4" /> Editar
+              </DropdownMenuItem>
+            </EditAfterSaleDialog>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleDeleteClick(afterSale)} className="text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    }
+  ];
+
+  return (
+    <>
+      <PageTableLayout
+        title="Postventas"
+        actionButton={<NewAfterSaleDialog />}
+        searchPlaceholder="Buscar postventas..."
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        columns={columns}
+        data={paginatedAfterSales}
+        loading={isLoadingAfterSales}
+        emptyStateTitle="No se encontraron registros de postventa."
+        emptyStateSubtitle="No hay datos que coincidan con los filtros actuales."
+        selectable={true}
+        selectedRows={selectedRows}
+        onSelectRow={handleSelectRow}
+        onSelectAll={handleSelectAll}
+        getRowId={(afterSale) => afterSale.id}
+        pagination={{
+          currentPage,
+          itemsPerPage,
+          totalItems: filteredAfterSales.length,
+          onPageChange: setCurrentPage,
+          onPageSizeChange: setItemsPerPage
+        }}
+      />
 
       {/* Modal de Detalles */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
@@ -307,6 +306,6 @@ export default function AfterSalesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

@@ -1,24 +1,8 @@
-// Declaraciones de tipos para extender los matchers de Jest-DOM
-import '@testing-library/jest-dom';
+// Declaraciones de tipos para Jest setup
+// NOTA: Los tipos de Jest se han centralizado en src/types/jest.d.ts
 
-declare global {
-  namespace jest {
-    interface Matchers<R> {
-      toHaveClass(className: string): R;
-      toBeInTheDocument(): R;
-      toBeDisabled(): R;
-      toBeEnabled(): R;
-      toBeVisible(): R;
-      toBeChecked(): R;
-      toHaveAttribute(attr: string, value?: string): R;
-      toHaveTextContent(text: string | RegExp): R;
-      toHaveValue(value: string | string[] | number): R;
-      toBeRequired(): R;
-      toBeValid(): R;
-      toBeInvalid(): R;
-      toHaveStyle(css: string): R;
-      toHaveFocus(): R;
-      toContainHTML(html: string): R;
-    }
-  }
-}
+// Este archivo ahora solo contiene tipos específicos para el setup de Jest
+// Los matchers de Jest-DOM se declaran en src/types/jest.d.ts
+
+// Re-exportar los tipos principales
+export type { CustomMatchers } from '../types/jest';

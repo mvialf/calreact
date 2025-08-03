@@ -7,25 +7,14 @@ import { useQuery, useQueryClient as useQueryClientHook, useMutation } from '@ta
 import type { Payment } from '@/types/payment';
 import type { ProjectType } from '@/types/project';
 import type { Client } from '@/types/client';
-import { getAllPayments, deletePayment, updatePayment } from '@/services/paymentService';
+import { getAllPayments, deletePayment } from '@/services/paymentService';
 import { EditPaymentDialog } from '@/components/payments/edit-payment-dialog';
 import { getProjects } from '@/services/projectService';
 import { getClients } from '@/services/clientService';
 import { format as formatDate } from '@/lib/calendar-utils';
 import { es } from 'date-fns/locale';
 
-
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/table/table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,29 +31,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { DollarSign, Edit, Trash2, GanttChartSquare, Search, Loader2, CreditCard } from 'lucide-react';
-import TablePagination from '@/components/table/table-pagination';
+import { DollarSign, Edit, Trash2, GanttChartSquare, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { normalizeSearchText } from '@/utils/search-utils';
+import { PageTableLayout, type TableColumn } from '@/components/layout/PageTableLayout';
 
 const formatCurrency = (amount: number | undefined | null) => {
   if (amount === undefined || amount === null) return 'N/A';
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
 };
 
-const PaymentRowSkeleton = () => (
-  <TableRow>
-    <TableCell>
-      <div className="h-5 w-20 bg-muted rounded animate-pulse mb-1"></div>
-      <div className="h-4 w-32 bg-muted rounded animate-pulse"></div>
-    </TableCell>
-    <TableCell className="text-right"><div className="h-5 w-20 bg-muted rounded animate-pulse"></div></TableCell>
-    <TableCell><div className="h-5 w-20 bg-muted rounded animate-pulse"></div></TableCell>
-    <TableCell><div className="h-5 w-24 bg-muted rounded animate-pulse"></div></TableCell>
-    <TableCell className="text-right"><div className="h-8 w-8 bg-muted rounded-full inline-block animate-pulse"></div></TableCell>
-  </TableRow>
-);
 
 interface EnrichedPayment extends Payment {
   clientName?: string;
@@ -83,7 +60,7 @@ export default function PaymentsPage() {
   
   // Estados para la paginación
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25); // Tope de 25 filas por página
+  const [pageSize, setPageSize] = useState(10); // Estandarizado como Projects
 
   const { data: payments = [], isLoading: isLoadingPayments, isError: isErrorPayments, error: errorPayments } = useQuery<Payment[], Error>({
     queryKey: ['payments'],
@@ -186,24 +163,6 @@ export default function PaymentsPage() {
   };
 
 
-  // Efecto para resetear a la primera página cuando cambian los filtros o los pagos
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterText, enrichedPayments]);
-  
-  // Manejar cambio de página
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    // Desplazarse al inicio de la tabla
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-  
-  // Manejar cambio de tamaño de página
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setCurrentPage(1); // Resetear a la primera página al cambiar el tamaño
-  };
-  
   // Calcular pagos paginados
   const paginatedPayments = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
@@ -213,9 +172,84 @@ export default function PaymentsPage() {
   const isLoading = isLoadingPayments || isLoadingProjects || isLoadingClients;
   const isMutating = deletePaymentMutation.isPending;
 
+  // Definir las columnas de la tabla
+  const columns: TableColumn<EnrichedPayment>[] = [
+    {
+      key: 'projectNumber',
+      label: 'Proyecto',
+      render: (payment) => (
+        <div className="font-medium">
+          <div>{payment.projectNumber}</div>
+          <div className="text-xs text-muted-foreground">{payment.clientName}</div>
+        </div>
+      )
+    },
+    {
+      key: 'amount',
+      label: 'Valor',
+      align: 'right',
+      render: (payment) => formatCurrency(payment.amount)
+    },
+    {
+      key: 'date',
+      label: 'Fecha',
+      render: (payment) => payment.date ? formatDate(payment.date, 'P', { locale: es }) : 'N/A'
+    },
+    {
+      key: 'paymentMethod',
+      label: 'Medio de Pago',
+      render: (payment) => (
+        <div className="flex items-center">
+          {payment.paymentMethod === 'tarjeta de crédito' ? (
+            <>
+              <span>Tarjeta de Crédito</span>
+              {payment.installments && (
+                <Badge className="ml-1 whitespace-nowrap">
+                  {payment.installments}
+                </Badge>
+              )}
+            </>
+          ) : (
+            payment.paymentMethod || 'N/A'
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'paymentType',
+      label: 'Tipo',
+      render: (payment) => payment.paymentType || 'N/A'
+    },
+    {
+      key: 'actions',
+      label: 'Acciones',
+      align: 'right',
+      width: 'w-[100px]',
+      render: (payment) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" disabled={isMutating && paymentToDelete?.id === payment.id} aria-label="Más acciones">
+              {isMutating && paymentToDelete?.id === payment.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <GanttChartSquare className="h-6 w-6" />}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => handleEditPayment(payment)} disabled={isMutating}>
+              <Edit className="mr-2 h-4 w-4" />
+              <span>Editar</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleDeletePaymentInitiate(payment)} disabled={isMutating} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span>Eliminar</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    }
+  ];
+
   if (isErrorPayments) {
     return (
-      <div className="flex flex-col h-full p-4 md:p-6 lg:p-8 items-center justify-center text-destructive">
+      <div className="text-red-500 p-4">
         <h1 className="text-2xl font-bold mb-2">Error al cargar pagos</h1>
         <p>{errorPayments?.message || "Ha ocurrido un error desconocido."}</p>
          <Button onClick={() => queryClient.refetchQueries({ queryKey: ['payments'] })} className="mt-4">
@@ -226,126 +260,33 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="flex flex-col bg-background h-full p-4 md:p-6 lg:p-8">
-      <header className="flex items-center justify-between gap-4 mb-6 md:mb-8">
-        <div className="flex items-center gap-4">
-
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-primary">Gestión de Pagos</h1>
-            <p className="text-muted-foreground">Consulta y administra los pagos registrados.</p>
-          </div>
-        </div>
-        <Button onClick={() => toast({ title: "Próximamente", description: "El registro de nuevos pagos estará disponible pronto."})} disabled={isLoading}>
-          <DollarSign className="mr-2 h-5 w-5" />
-          Registrar Pago
-        </Button>
-      </header>
-      <main className="flex-grow">
-        <Card className="shadow-lg">
-          <div className="flex items-center justify-between p-4 border-b">
-            <div className="relative w-full max-w-sm">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                placeholder="Filtrar por proyecto, cliente, tipo..."
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                className="pl-8"
-                disabled={isLoading}
-                />
-            </div>
-          </div>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Proyecto</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Medio de Pago</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right w-[100px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  [...Array(5)].map((_, i) => <PaymentRowSkeleton key={i} />)
-                ) : filteredPayments.length > 0 ? (
-                  paginatedPayments.map((payment) => (
-                    <TableRow key={payment.id} className={isMutating && paymentToDelete?.id === payment.id ? 'opacity-50' : ''}>
-                                            <TableCell className="font-medium">
-                        <div>{payment.projectNumber}</div>
-                        <div className="text-xs text-muted-foreground">{payment.clientName}</div>
-                      </TableCell>
-                      <TableCell className="text-right">{formatCurrency(payment.amount)}</TableCell>
-                      <TableCell>{payment.date ? formatDate(payment.date, 'P', { locale: es }) : 'N/A'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          {payment.paymentMethod === 'tarjeta de crédito' ? (
-                            <>
-                              <span>Tarjeta de Crédito</span>
-                              {payment.installments && (
-                                <Badge className="ml-1 whitespace-nowrap">
-                                  {payment.installments}
-                                </Badge>
-                              )}
-                            </>
-                          ) : (
-                            payment.paymentMethod || 'N/A'
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{payment.paymentType || 'N/A'}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" disabled={isMutating && paymentToDelete?.id === payment.id} aria-label="Más acciones">
-                              {isMutating && paymentToDelete?.id === payment.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <GanttChartSquare className="h-4 w-4" />}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => handleEditPayment(payment)} disabled={isMutating}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              <span>Editar</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleDeletePaymentInitiate(payment)} disabled={isMutating} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              <span>Eliminar</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                      <DollarSign className="mx-auto h-12 w-12 mb-4" />
-                      <p className="text-lg font-semibold">No hay pagos registrados.</p>
-                      <p className="text-sm">Empieza añadiendo pagos a tus proyectos.</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-              {filteredPayments.length > 0 && (
-                <tfoot>
-                  <tr>
-                    <td colSpan={6} className="px-4 py-2">
-                      <TablePagination
-                        totalItems={filteredPayments.length}
-                        pageSize={pageSize}
-                        currentPage={currentPage}
-                        onPageChange={handlePageChange}
-                        onPageSizeChange={handlePageSizeChange}
-                        className="mt-4"
-                      />
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </Table>
-          </CardContent>
-        </Card>
-      </main>
+    <>
+      <PageTableLayout
+        title="Gestión de Pagos"
+        actionButton={
+          <Button onClick={() => toast({ title: "Próximamente", description: "El registro de nuevos pagos estará disponible pronto."})} disabled={isLoading}>
+            <DollarSign className="mr-2 h-5 w-5" />
+            Registrar Pago
+          </Button>
+        }
+        searchPlaceholder="Filtrar por proyecto, cliente, tipo..."
+        searchValue={filterText}
+        onSearchChange={setFilterText}
+        columns={columns}
+        data={paginatedPayments}
+        loading={isLoading}
+        emptyStateIcon={<DollarSign className="mx-auto h-12 w-12 text-muted-foreground mb-2" />}
+        emptyStateTitle="No hay pagos registrados."
+        emptyStateSubtitle="Empieza añadiendo pagos a tus proyectos."
+        pagination={{
+          currentPage,
+          itemsPerPage: pageSize,
+          totalItems: filteredPayments.length,
+          onPageChange: setCurrentPage,
+          onPageSizeChange: setPageSize
+        }}
+        rowClassName={(payment) => isMutating && paymentToDelete?.id === payment.id ? 'opacity-50' : ''}
+      />
 
       {paymentToDelete && (
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -380,6 +321,6 @@ export default function PaymentsPage() {
           payment={paymentToEdit}
         />
       )}
-    </div>
+    </>
   );
 }

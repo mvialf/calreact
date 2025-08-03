@@ -1,14 +1,7 @@
-// @ts-nocheck
-/* Este archivo usa @ts-nocheck para evitar problemas con los tipos en las pruebas.
- * Esta es una solución temporal mientras se resuelve la configuración de tipos de Jest.
- */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { AddressInput } from '../components/ui/addressInput';
-
-// Definición de tipos para las funciones mock de Google Places API
-type GoogleCallback = (results: any, status: string) => void;
 
 // Mock de @react-google-maps/api
 jest.mock('@react-google-maps/api', () => ({
@@ -134,7 +127,7 @@ describe('AddressInput', () => {
       callback([], 'ZERO_RESULTS');
     });
     
-    render(<AddressInput onSelect={mockOnSelect} emptyText="No se encontraron resultados" />);
+    render(<AddressInput onSelect={mockOnSelect} />);
     
     const input = screen.getByPlaceholderText('Buscar dirección...');
     fireEvent.change(input, { target: { value: 'Dirección inexistente' } });

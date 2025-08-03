@@ -1,30 +1,30 @@
 // Archivo de definición para tipos relacionados con testing
-// Este archivo extiende las definiciones de Jest para incluir los matchers de Jest-DOM
+// NOTA: Los tipos de Jest se han movido a src/types/jest.d.ts para evitar duplicaciones
 
-import '@testing-library/jest-dom';
+// Re-exportar tipos útiles para testing
+export type { MockedFunction, MockedClass, MockedObject, TestComponent, TestProps } from './jest';
 
-// Extensión global para tipos de Jest y Testing Library
-declare global {
-  // Agrega los tipos para los matchers personalizados de Jest-DOM
-  namespace jest {
-    interface Matchers<R, T> {
-      // Matchers de Jest-DOM que estamos utilizando
-      toHaveTextContent(text: string | RegExp): R;
-      toHaveClass(...classNames: string[]): R;
-      toBeDisabled(): R;
-      toBeEnabled(): R;
-      toBeInTheDocument(): R;
-      toBeVisible(): R;
-      toBeChecked(): R;
-      toHaveAttribute(attr: string, value?: string): R;
-      toHaveValue(value: string | string[] | number): R;
-      toBeRequired(): R;
-      toBeValid(): R;
-      toBeInvalid(): R;
-      toHaveStyle(css: string): R;
-      toHaveFocus(): R;
-      toContainHTML(html: string): R;
-      toContainElement(element: HTMLElement | null): R;
-    }
-  }
+// Tipos específicos para utilidades de testing del proyecto
+export interface TestDataFactory<T> {
+  create(overrides?: Partial<T>): T;
+  createMany(count: number, overrides?: Partial<T>): T[];
+  createWithRelations(relations: Record<string, any>): T;
+}
+
+export interface TestPageHelpers {
+  getByTestId: (testId: string) => HTMLElement;
+  queryByTestId: (testId: string) => HTMLElement | null;
+  getSearchInput: () => HTMLElement;
+  getTable: () => HTMLElement;
+  getTableRows: () => HTMLElement[];
+  getTableHeaders: () => HTMLElement[];
+  clickActionButton: (text: string) => Promise<void>;
+  typeInSearch: (text: string) => Promise<void>;
+}
+
+export interface MockServiceHelpers {
+  resetAllMocks: () => void;
+  setupSuccessResponse: <T>(service: string, method: string, data: T) => void;
+  setupErrorResponse: (service: string, method: string, error: Error) => void;
+  setupLoadingResponse: (service: string, method: string) => void;
 }

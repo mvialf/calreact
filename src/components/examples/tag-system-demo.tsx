@@ -92,9 +92,7 @@ export const TagSystemDemo: React.FC = () => {
               label="Etiquetas del Proyecto"
             />
             
-            <div className="text-sm text-muted-foreground">
-              Etiquetas seleccionadas: {selectedTags.length}
-            </div>
+
           </CardContent>
         </Card>
 

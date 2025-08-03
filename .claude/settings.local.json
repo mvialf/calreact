@@ -28,7 +28,9 @@
       "WebFetch(domain:susomejias.dev)",
       "Bash(powershell:*)",
       "WebFetch(domain:127.0.0.1)",
-      "WebFetch(domain:ui.shadcn.com)"
+      "WebFetch(domain:ui.shadcn.com)",
+      "Bash(npm run test:types:*)",
+      "Bash(npm test:*)"
     ],
     "deny": []
   }
