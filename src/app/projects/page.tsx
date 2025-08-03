@@ -243,11 +243,11 @@ const ProjectsPage: React.FC = () => {
   if (isError && error) return <div className="text-red-500 p-4">Error al cargar proyectos: {error.message}</div>;
 
   return (
-    <div className="container mx-auto px-4 pb-2 bg-background">
+    <div className="w-full max-w-none px-4 pb-2 bg-background">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold text-primary">Proyectos</h1>
         <NewProjectDialog />
-      </div>
+      </div> 
       
       {/* Tabla de Proyectos */}
       <Card>

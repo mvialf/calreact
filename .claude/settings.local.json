@@ -25,7 +25,10 @@
       "Bash(sed:*)",
       "Bash(npm test)",
       "Bash(diff:*)",
-      "WebFetch(domain:susomejias.dev)"
+      "WebFetch(domain:susomejias.dev)",
+      "Bash(powershell:*)",
+      "WebFetch(domain:127.0.0.1)",
+      "WebFetch(domain:ui.shadcn.com)"
     ],
     "deny": []
   }

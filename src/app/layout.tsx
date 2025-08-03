@@ -2,7 +2,6 @@
 
 'use client';
 
-import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -22,7 +21,7 @@ import { ThemeProvider } from 'next-themes';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { HeaderNav } from '@/components/ui/headernav';
-import { Sidebar } from '@/components/ui/sidebar';
+import { Sidebar, SidebarProvider } from '@/components/ui/sidebar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Script from 'next/script';
 import { cn } from '@/lib/utils';
@@ -144,9 +143,10 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <AppConfigProvider>
-              <HeaderNav />
-              <div className="flex h-screen">
-                <Sidebar>
+                <SidebarProvider>
+                  <HeaderNav />
+                  <div className="flex h-screen">
+                    <Sidebar>
                   <div className="flex flex-col h-full">
                     <div className="p-4">
                       <Link 
@@ -195,12 +195,13 @@ export default function RootLayout({
                   </div>
                 </Sidebar>
                 
-                <main className="flex-1 lg:pl-64">
-                  <div className="p-4 sm:p-6 lg:p-8 h-full overflow-y-auto lg:mt-16">
+                <main className="flex-1">
+                  <div className="p-4 sm:p-6 lg:p-8 h-full lg:mt-16">
                     {children}
                   </div>
                 </main>
-              </div>
+                  </div>
+                </SidebarProvider>
               <Toaster />
               <Script
                 src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMaps`}
