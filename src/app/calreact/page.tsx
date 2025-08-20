@@ -5,6 +5,20 @@ import type { EventType, ViewOption } from '@/types/event';
 import { CalendarView } from '@/components/calendar/calendar-view';
 import { EventModal } from '@/components/calendar/event-modal';
 import { CalendarToolbar } from '@/components/calendar/calendar-toolbar';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import {
+  FolderOpen,
+  CalendarDays,
+  Settings,
+  Users,
+  DollarSign,
+  LayoutDashboard,
+  Wrench,
+  Home,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { HeaderNav } from '@/components/ui/headernav';
 import { db } from '@/lib/firebase/client'; // Importar la instancia db configurada
 import { getAllCalendarEvents } from '@/services/calendarEventService';
 import { updateProjectEvent } from '@/services/projectEventService';
@@ -21,6 +35,50 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
+
+const navItems = [
+  { 
+    href: '/dashboard', 
+    icon: LayoutDashboard, 
+    label: 'Panel Principal', 
+    altPaths: ['/'] 
+  },
+  { 
+    href: '/projects', 
+    icon: FolderOpen, 
+    label: 'Proyectos' 
+  },
+  { 
+    href: '/calreact', 
+    icon: CalendarDays, 
+    label: 'Calendario' 
+  },
+  { 
+    href: '/aftersales', 
+    icon: Wrench, 
+    label: 'Postventas' 
+  },
+  { 
+    href: '/visits', 
+    icon: Home, 
+    label: 'Visitas' 
+  },
+  { 
+    href: '/payments', 
+    icon: DollarSign, 
+    label: 'Pagos' 
+  },
+  { 
+    href: '/clients', 
+    icon: Users, 
+    label: 'Clientes' 
+  },
+  { 
+    href: '/settings', 
+    icon: Settings, 
+    label: 'Configuración' 
+  },
+];
 
 // Skeleton components for loading state
 const ToolbarSkeleton = () => (
@@ -46,6 +104,7 @@ const CalendarViewSkeleton = () => (
 );
 
 export default function CalReactAppPage() {
+  const pathname = usePathname();
   // NOTA: En producción, reemplazar con sistema de autenticación real
   // Ej: const userId = useAuth().currentUser?.uid || "anonymous";
   const userId = "mockUserId"; // Placeholder para desarrollo
