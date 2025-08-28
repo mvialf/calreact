@@ -30,7 +30,16 @@
       "WebFetch(domain:127.0.0.1)",
       "WebFetch(domain:ui.shadcn.com)",
       "Bash(npm run test:types:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(~/.claude-code-docs/claude-docs-helper.sh:*)",
+      "Bash(uvx:*)",
+      "Bash(claude mcp:*)",
+      "mcp__serena__check_onboarding_performed",
+      "mcp__serena__onboarding",
+      "mcp__filesystem__read_text_file",
+      "mcp__serena__list_dir",
+      "mcp__serena__get_symbols_overview",
+      "mcp__serena__write_memory"
     ],
     "deny": []
   }
