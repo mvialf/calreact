@@ -140,7 +140,7 @@ export function NewProjectEventModal({
         projectId: project.id,
         description: project.description || '',
         phone: project.phone || '',
-        fullAddress: project.fullAddress || null,
+        fullAddress: project.fullAddress || undefined,
         status: project.status,
         windowsCount: project.windowsCount || 0,
         squareMeters: project.squareMeters || 0,

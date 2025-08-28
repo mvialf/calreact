@@ -161,7 +161,7 @@ export const isDetailRoute = (route: string): boolean => {
  */
 export const getBreadcrumbs = (route: string): Array<{ title: string; href: string }> => {
   const segments = route.split('/').filter(Boolean);
-  const breadcrumbs = [{ title: 'Inicio', href: ROUTES.HOME }];
+  const breadcrumbs: Array<{ title: string; href: string }> = [{ title: 'Inicio', href: ROUTES.HOME }];
   
   let currentPath = '';
   
@@ -186,7 +186,7 @@ export const getBreadcrumbs = (route: string): Array<{ title: string; href: stri
     
     breadcrumbs.push({
       title,
-      href: currentPath,
+      href: currentPath as string,
     });
   });
   

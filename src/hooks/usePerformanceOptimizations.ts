@@ -5,7 +5,7 @@
  * que manejan datos complejos o cálculos pesados.
  */
 
-import { useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 
 /**
  * Hook para memoizar cálculos complejos con dependencias personalizadas

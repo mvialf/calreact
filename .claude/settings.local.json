@@ -39,8 +39,22 @@
       "mcp__filesystem__read_text_file",
       "mcp__serena__list_dir",
       "mcp__serena__get_symbols_overview",
-      "mcp__serena__write_memory"
+      "mcp__serena__write_memory",
+      "mcp__context7__resolve-library-id",
+      "Bash(npm ls:*)",
+      "Bash(npm install)",
+      "mcp__serena__activate_project",
+      "mcp__serena__read_file",
+      "mcp__serena__search_for_pattern",
+      "mcp__serena__find_file",
+      "mcp__serena__replace_regex",
+      "mcp__serena__find_symbol"
     ],
     "deny": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "serena",
+    "task-master",
+    "firebase"
+  ]
 }

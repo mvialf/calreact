@@ -268,11 +268,11 @@ const ProjectsPage: React.FC = () => {
             <DropdownMenuSeparator />
             {PROJECT_STATUS_OPTIONS.map(status => (
               <DropdownMenuItem 
-                key={status} 
-                onSelect={() => handleStatusChange(project.id, status)}
-                disabled={project.status === status}
+                key={status.value} 
+                onSelect={() => handleStatusChange(project.id, status.value)}
+                disabled={project.status === status.value}
               >
-                {status}
+                {status.label}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

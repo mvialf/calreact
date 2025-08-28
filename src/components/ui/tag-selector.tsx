@@ -78,14 +78,10 @@ export const TagSelector = React.forwardRef<HTMLDivElement, TagSelectorProps>(
       if (!onCreateTag) return;
       
       // Crear la nueva etiqueta
-      const newTag = onCreateTag(name, color);
+      onCreateTag(name, color);
       
-      // Si se devuelve la nueva etiqueta, agregarla a las seleccionadas temporalmente
-      if (newTag && typeof newTag === 'object' && 'id' in newTag) {
-        setTempSelectedTags([...tempSelectedTags, newTag as Tag]);
-      }
-      
-      return newTag;
+      // Nota: onCreateTag no retorna la nueva etiqueta, 
+      // la etiqueta se agregará automáticamente a availableTags
     };
 
     return (

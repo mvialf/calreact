@@ -8,7 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
 import type { Firestore } from 'firebase/firestore';
-import { getFirestore } from '@/lib/firebase/config';
+import { db } from '@/lib/firebase';
 
 export interface UseFirestoreDocumentOptions<T> {
   queryKey: string[];
@@ -74,7 +74,7 @@ export const useFirestoreDocument = <T extends { id: string }>({
 }: UseFirestoreDocumentOptions<T>): UseFirestoreDocumentReturn<T> => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const firestore = getFirestore();
+  const firestore = db;
 
   // Query para obtener datos
   const {
@@ -87,7 +87,7 @@ export const useFirestoreDocument = <T extends { id: string }>({
     queryKey,
     queryFn: () => fetchFn(firestore),
     staleTime: 5 * 60 * 1000, // 5 minutos
-    cacheTime: 10 * 60 * 1000, // 10 minutos
+    gcTime: 10 * 60 * 1000, // 10 minutos
   });
 
   // Función para invalidar caché

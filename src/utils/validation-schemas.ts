@@ -87,18 +87,15 @@ export const addressComponentsSchema = z.object({
 /**
  * Esquema completo para direcciones con Google Places
  */
-export const fullAddressSchema = z.union([
-  z.object({
-    textoCompleto: z.string().min(1, 'La dirección es requerida'),
-    placeId: z.string().min(1, 'Place ID es requerido'),
-    coordenadas: coordinatesSchema,
-    componentes: addressComponentsSchema,
-    detalle: optionalString,
-    informacionAdicional: optionalString,
-    comune: optionalString,
-  }),
-  z.null()
-]).optional();
+export const fullAddressSchema = z.object({
+  textoCompleto: z.string().min(1, 'La dirección es requerida'),
+  placeId: z.string().min(1, 'Place ID es requerido'),
+  coordenadas: coordinatesSchema,
+  componentes: addressComponentsSchema,
+  detalle: optionalString,
+  informacionAdicional: optionalString,
+  comune: optionalString,
+}).optional();
 
 /**
  * Esquema simplificado para direcciones de solo texto

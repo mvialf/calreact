@@ -41,7 +41,7 @@ export {
 
 export { 
   getAllPayments as fetchAllPayments,
-  getPaymentsByProject as fetchPaymentsByProject 
+  getPaymentsForProject as fetchPaymentsByProject 
 } from './paymentService';
 
 export { 
@@ -50,6 +50,6 @@ export {
 } from './visitService';
 
 export { 
-  getAfterSales as getAllAfterSales,
-  getAfterSales as fetchAfterSales 
+  getAfterSalesForProject as getAllAfterSales,
+  getAfterSalesById as fetchAfterSales 
 } from './afterSalesService';

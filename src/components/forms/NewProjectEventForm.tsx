@@ -90,7 +90,7 @@ export const NewProjectEventForm: React.FC<NewProjectEventFormProps> = ({
       projectId: initialData?.projectId || "",
       description: initialData?.description || DEFAULT_EVENT_DESCRIPTION,
       phone: initialData?.phone || DEFAULT_PHONE,
-      fullAddress: initialData?.fullAddress || null,
+      fullAddress: initialData?.fullAddress || undefined,
       status: initialData?.status || DEFAULT_PROJECT_STATUS,
       eventDate: initialData?.eventDate || undefined,
       windowsCount: (() => {
@@ -128,7 +128,7 @@ export const NewProjectEventForm: React.FC<NewProjectEventFormProps> = ({
         projectId: initialData.projectId || "",
         description: initialData.description || DEFAULT_EVENT_DESCRIPTION,
         phone: initialData.phone || DEFAULT_PHONE,
-        fullAddress: initialData.fullAddress || null,
+        fullAddress: initialData.fullAddress || undefined,
         status: initialData.status || DEFAULT_PROJECT_STATUS,
         eventDate: initialData.eventDate || undefined,
         windowsCount: Math.floor(windowsCount),
@@ -194,8 +194,8 @@ export const NewProjectEventForm: React.FC<NewProjectEventFormProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     {PROJECT_STATUS_OPTIONS.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -325,21 +325,21 @@ export const NewProjectEventForm: React.FC<NewProjectEventFormProps> = ({
             <div className="pl-6 space-y-2">
               <Label>Tipos de desinstalación</Label>
               <div className="flex flex-wrap gap-2 align-center">
-                {UNINSTALL_TYPE_OPTIONS.map((type) => (
-                  <div key={type} className="flex items-center space-x-2">
+                {UNINSTALL_TYPE_OPTIONS.map((option) => (
+                  <div key={option.value} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`uninstall-${type}`}
-                      checked={watchUninstallTypes.includes(type)}
+                      id={`uninstall-${option.value}`}
+                      checked={watchUninstallTypes.includes(option.value)}
                       disabled={disabled}
                       onCheckedChange={(checked) => {
                         const newTypes = checked 
-                          ? [...watchUninstallTypes, type] 
-                          : watchUninstallTypes.filter((t) => t !== type);
+                          ? [...watchUninstallTypes, option.value] 
+                          : watchUninstallTypes.filter((t) => t !== option.value);
                         form.setValue('uninstallTypes', newTypes);
                       }}
                     />
-                    <Label htmlFor={`uninstall-${type}`} className="font-normal">
-                      {type}
+                    <Label htmlFor={`uninstall-${option.value}`} className="font-normal">
+                      {option.label}
                     </Label>
                   </div>
                 ))}

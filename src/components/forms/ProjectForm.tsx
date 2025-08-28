@@ -143,7 +143,7 @@ export const projectFormSchema = z
     projectNumber: requiredString('Número de proyecto'),
     glosa: optionalString,
     date: requiredDate('Fecha de inicio'),
-    status: dynamicEnum(PROJECT_STATUS_OPTIONS, 'Estado'),
+    status: dynamicEnum(PROJECT_STATUS_OPTIONS.map(option => option.value), 'Estado'),
     subtotal: subtotalSchema,
     taxRate: taxRateSchema,
     windowsCount: preprocessedInteger("Número de ventanas"),
@@ -392,7 +392,7 @@ export function ProjectForm({
                         <SelectTrigger><SelectValue placeholder='Seleccionar estado' /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {PROJECT_STATUS_OPTIONS.map((status) => (<SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>))}
+                        {PROJECT_STATUS_OPTIONS.map((status) => (<SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>))}
                       </SelectContent>
                     </Select>
 
@@ -533,17 +533,17 @@ export function ProjectForm({
               <div className='pl-6 space-y-2'>
                 <Label>Tipos de desinstalación</Label>
                 <div className='flex flex-wrap gap-2'>
-                  {UNINSTALL_TYPE_OPTIONS.map((type) => (
-                    <div key={type} className='flex items-center space-x-2'>
+                  {UNINSTALL_TYPE_OPTIONS.map((option) => (
+                    <div key={option.value} className='flex items-center space-x-2'>
                       <Checkbox
-                        id={`uninstall-${type}`}
-                        checked={watchUninstallTypes.includes(type)}
+                        id={`uninstall-${option.value}`}
+                        checked={watchUninstallTypes.includes(option.value)}
                         onCheckedChange={(checked) => {
-                          const newTypes = checked ? [...watchUninstallTypes, type] : watchUninstallTypes.filter((t) => t !== type);
+                          const newTypes = checked ? [...watchUninstallTypes, option.value] : watchUninstallTypes.filter((t) => t !== option.value);
                           setValue('uninstallTypes', newTypes);
                         }}
                       />
-                      <Label htmlFor={`uninstall-${type}`} className='font-normal'>{type}</Label>
+                      <Label htmlFor={`uninstall-${option.value}`} className='font-normal'>{option.label}</Label>
                     </div>
                   ))}
                 </div>

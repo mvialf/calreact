@@ -5,42 +5,38 @@ const createJestConfig = nextJest({
   dir: './',
 });
 
-// Configuración personalizada de Jest (simplificada)
+// Configuración personalizada de Jest (limpia y simplificada)
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
 
-  /**
-   * Mock para lucide-react ya configurado en src/__mocks__/lucide-react.js
-   * No necesitamos transformIgnorePatterns complejos
-   */
-
-  /**
-   * Mapeo de módulos - Next.js ya maneja TypeScript
-   */
+  // Mapeo de módulos - Next.js ya maneja TypeScript
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
 
-  /**
-   * Cobertura de código
-   */
+  // Cobertura de código actualizada
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',
-    '!src/__tests__/**',
     '!src/__mocks__/**',
     '!src/types/**',
+    '!src/app/globals.css',
   ],
 
-  /**
-   * Configuración de reportes y rendimiento
-   */
+  // Configuración básica
   coverageReporters: ['text', 'lcov', 'html'],
   coverageDirectory: 'coverage',
   testTimeout: 10000,
   clearMocks: true,
   restoreMocks: true,
+
+  // Ignora archivos sin tests
+  testPathIgnorePatterns: [
+    '<rootDir>/.next/',
+    '<rootDir>/node_modules/',
+    '<rootDir>/coverage/',
+  ],
 };
 
 module.exports = createJestConfig(customJestConfig);

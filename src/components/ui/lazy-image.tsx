@@ -152,7 +152,7 @@ export function LazyImage({
   );
 
   return (
-    <div ref={imageRef} className="relative overflow-hidden">
+    <div ref={imageRef as React.RefObject<HTMLDivElement>} className="relative overflow-hidden">
       {/* Imagen principal */}
       <img
         ref={imgElementRef}

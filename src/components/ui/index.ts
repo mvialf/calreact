@@ -142,7 +142,7 @@ export { CheckList } from './check-list';
 // ===== COMPONENTES PERSONALIZADOS =====
 export { TagBadge } from './tag-badge';
 export { TagSelector } from './tag-selector';
-export { Tags } from './tags';
-export { SafeDialog } from './safe-dialog';
+export type { Tag } from './tags';
+export { useSafeDialog } from './safe-dialog';
 export { CopyableCodeBlock } from './copyable-code-block';
 export { FileDndInput } from './file-dnd-input';
