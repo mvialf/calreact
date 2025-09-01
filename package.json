@@ -74,6 +74,7 @@
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "use-places-autocomplete": "^4.0.1",
+    "winston": "^3.17.0",
     "zod": "^3.25.67",
     "zustand": "^5.0.5"
   },
@@ -84,7 +85,7 @@
     "@types/country-data": "^0.0.5",
     "@types/google.maps": "^3.58.1",
     "@types/jest": "^29.5.12",
-    "@types/node": "^20.19.1",
+    "@types/node": "^20.19.11",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-input-mask": "^3.0.6",

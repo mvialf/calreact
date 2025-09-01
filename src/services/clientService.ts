@@ -64,13 +64,11 @@ export const addClient = async (clientData: ClientImportData): Promise<Client> =
     try {
       const date = typeof clientData.createdAt === 'string' ? new Date(clientData.createdAt) : clientData.createdAt;
       if (isNaN(date.getTime())) {
-        console.warn(`Invalid createdAt date provided for client ${clientData.name || clientData.id}. Using server timestamp. Value: ${clientData.createdAt}`);
         createdAtTimestamp = serverTimestamp() as Timestamp;
       } else {
         createdAtTimestamp = Timestamp.fromDate(date);
       }
     } catch (e) {
-      console.warn(`Error parsing createdAt date for client ${clientData.name || clientData.id}. Using server timestamp. Value: ${clientData.createdAt}`, e);
       createdAtTimestamp = serverTimestamp() as Timestamp;
     }
   } else {

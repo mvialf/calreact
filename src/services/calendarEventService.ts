@@ -79,15 +79,12 @@ export async function getAllCalendarEvents(
   firestore: Firestore = db,
   userId?: string
 ): Promise<EventType[]> {
-  console.log('📅 Obteniendo todos los eventos para el calendario...');
   
   try {
     const allEvents: EventType[] = [];
 
     // 1. Obtener eventos de proyecto
-    console.log('📋 Obteniendo project events...');
     const projectEvents = await getProjectEvents.withFirestore(firestore);
-    console.log(`   ✅ ${projectEvents.length} project events encontrados`);
     
     // Convertir project events a calendar events
     const calendarProjectEvents = projectEvents.map(convertProjectEventToCalendarEvent);
@@ -104,7 +101,6 @@ export async function getAllCalendarEvents(
     // 4. Ordenar eventos por fecha
     allEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
-    console.log(`🎉 Total eventos para calendario: ${allEvents.length}`);
     
     // Log de resumen por tipo
     const eventsByType = allEvents.reduce((acc, event) => {
@@ -112,12 +108,10 @@ export async function getAllCalendarEvents(
       return acc;
     }, {} as Record<string, number>);
     
-    console.log('📊 Eventos por tipo:', eventsByType);
 
     return allEvents;
 
   } catch (error) {
-    console.error('❌ Error al obtener eventos del calendario:', error);
     throw error;
   }
 }
@@ -136,7 +130,6 @@ export async function getCalendarEventsInRange(
   firestore: Firestore = db,
   userId?: string
 ): Promise<EventType[]> {
-  console.log(`📅 Obteniendo eventos entre ${startDate.toLocaleDateString()} y ${endDate.toLocaleDateString()}`);
   
   const allEvents = await getAllCalendarEvents(firestore, userId);
   
@@ -154,7 +147,6 @@ export async function getCalendarEventsInRange(
            (eventStart <= startDate && eventEnd >= endDate);
   });
 
-  console.log(`📋 ${eventsInRange.length} eventos encontrados en el rango`);
   return eventsInRange;
 }
 
@@ -174,7 +166,6 @@ export async function searchCalendarEvents(
     return getAllCalendarEvents(firestore, userId);
   }
 
-  console.log(`🔍 Buscando eventos con término: "${searchTerm}"`);
   
   const allEvents = await getAllCalendarEvents(firestore, userId);
   const lowerSearchTerm = searchTerm.toLowerCase();
@@ -186,7 +177,6 @@ export async function searchCalendarEvents(
            event.location?.toLowerCase().includes(lowerSearchTerm);
   });
 
-  console.log(`📋 ${filteredEvents.length} eventos encontrados para "${searchTerm}"`);
   return filteredEvents;
 }
 

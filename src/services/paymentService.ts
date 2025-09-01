@@ -24,6 +24,7 @@ import { db } from '@/lib/firebase/client';
 import type { Payment, PaymentDocument, PaymentImportData, PaymentMethod, PaymentTypeOption } from '@/types/payment';
 import type { ProjectDocument } from '@/types/project'; // Import ProjectDocument for typing
 import { docSnapshotToEntity, timestampToDate } from '@/utils/firestore-helpers';
+import { paymentLogger } from '@/lib/logger';
 
 const PAYMENTS_COLLECTION = 'payments';
 const INSTALLMENTS_COLLECTION = 'installments'; // Colección para almacenar cuotas
@@ -53,72 +54,100 @@ const paymentFromDoc = (docSnapshot: DocumentSnapshot): Payment => {
 };
 
 export const getAllPayments = async (): Promise<Payment[]> => {
-  const paymentsCollectionRef = collection(db, PAYMENTS_COLLECTION);
-  const q = query(paymentsCollectionRef, orderBy('date', 'desc'));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(paymentFromDoc);
+  try {
+    paymentLogger.debug('Obteniendo todos los pagos');
+    
+    const paymentsCollectionRef = collection(db, PAYMENTS_COLLECTION);
+    const q = query(paymentsCollectionRef, orderBy('date', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const payments = querySnapshot.docs.map(paymentFromDoc);
+    
+    paymentLogger.info('Pagos obtenidos exitosamente', { count: payments.length });
+    return payments;
+  } catch (error) {
+    paymentLogger.error('Error al obtener todos los pagos', error);
+    throw error;
+  }
 };
 
 export const getPaymentsForProject = async (projectId: string): Promise<Payment[]> => {
-  const paymentsCollectionRef = collection(db, PAYMENTS_COLLECTION);
-  // Eliminamos el orderBy para evitar necesitar un índice compuesto
-  const q = query(paymentsCollectionRef, where('projectId', '==', projectId));
-  const querySnapshot = await getDocs(q);
-  // Ordenamos en memoria después de obtener los resultados
-  return querySnapshot.docs
-    .map(paymentFromDoc)
-    .sort((a, b) => b.date.getTime() - a.date.getTime()); // Orden descendente por fecha
+  try {
+    paymentLogger.debug('Obteniendo pagos para proyecto', { projectId });
+    
+    const paymentsCollectionRef = collection(db, PAYMENTS_COLLECTION);
+    // Eliminamos el orderBy para evitar necesitar un índice compuesto
+    const q = query(paymentsCollectionRef, where('projectId', '==', projectId));
+    const querySnapshot = await getDocs(q);
+    // Ordenamos en memoria después de obtener los resultados
+    const payments = querySnapshot.docs
+      .map(paymentFromDoc)
+      .sort((a, b) => b.date.getTime() - a.date.getTime()); // Orden descendente por fecha
+    
+    paymentLogger.info('Pagos del proyecto obtenidos exitosamente', { 
+      projectId, 
+      count: payments.length 
+    });
+    
+    return payments;
+  } catch (error) {
+    paymentLogger.error('Error al obtener pagos del proyecto', error);
+    throw error;
+  }
 };
 
 export const getPaymentById = async (paymentId: string): Promise<Payment | null> => {
-  const paymentDocRef = doc(db, PAYMENTS_COLLECTION, paymentId);
-  const docSnap = await getDoc(paymentDocRef);
-  if (docSnap.exists()) {
-    return paymentFromDoc(docSnap);
+  try {
+    paymentLogger.debug('Obteniendo pago por ID', { paymentId });
+    
+    const paymentDocRef = doc(db, PAYMENTS_COLLECTION, paymentId);
+    const docSnap = await getDoc(paymentDocRef);
+    
+    if (docSnap.exists()) {
+      const payment = paymentFromDoc(docSnap);
+      paymentLogger.debug('Pago encontrado exitosamente', { paymentId });
+      return payment;
+    }
+    
+    paymentLogger.warn('Pago no encontrado', { paymentId });
+    return null;
+  } catch (error) {
+    paymentLogger.error('Error al obtener pago por ID', error);
+    throw error;
   }
-  return null;
 };
 
-export const addPayment = async (paymentData: PaymentImportData | Omit<Payment, 'id' | 'updatedAt'>, firestore = db): Promise<Payment> => {
-  
-  let createdAtTimestamp: Timestamp;
-  if (paymentData.createdAt) {
-    try {
-      const date = typeof paymentData.createdAt === 'string' ? new Date(paymentData.createdAt) : paymentData.createdAt;
-      if (isNaN(date.getTime())) {
-        console.warn(`Invalid createdAt date provided for payment. Using server timestamp. Value: ${paymentData.createdAt}`);
-        createdAtTimestamp = serverTimestamp() as Timestamp;
-      } else {
-        createdAtTimestamp = Timestamp.fromDate(date);
-      }
-    } catch (e) {
-      console.warn(`Error parsing createdAt date for payment. Using server timestamp. Value: ${paymentData.createdAt}`, e);
-      createdAtTimestamp = serverTimestamp() as Timestamp;
+/**
+ * Convierte una fecha a Timestamp de Firestore con fallback a serverTimestamp
+ * @private
+ */
+const parseTimestamp = (dateValue: string | Date | undefined, isRequired: boolean = false): Timestamp => {
+  if (!dateValue) {
+    if (isRequired) {
+      throw new Error("Payment date is required for addPayment service.");
     }
-  } else {
-    createdAtTimestamp = serverTimestamp() as Timestamp;
+    return serverTimestamp() as Timestamp;
   }
 
-  let paymentDateTimestamp: Timestamp;
-  if (paymentData.date) {
-    try {
-      const date = typeof paymentData.date === 'string' ? new Date(paymentData.date) : paymentData.date;
-      if (isNaN(date.getTime())) {
-        console.warn(`Invalid payment date provided. Using server timestamp for date. Value: ${paymentData.date}`);
-        paymentDateTimestamp = serverTimestamp() as Timestamp; 
-      } else {
-        paymentDateTimestamp = Timestamp.fromDate(date);
-      }
-    } catch (e) {
-      console.warn(`Error parsing payment date. Using server timestamp for date. Value: ${paymentData.date}`, e);
-      paymentDateTimestamp = serverTimestamp() as Timestamp; 
+  try {
+    const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
+    if (isNaN(date.getTime())) {
+      return serverTimestamp() as Timestamp;
     }
-  } else {
-    console.error("Payment date is missing, which is required for addPayment service.");
-    throw new Error("Payment date is required for addPayment service.");
+    return Timestamp.fromDate(date);
+  } catch {
+    return serverTimestamp() as Timestamp;
   }
+};
 
-  const dataToSave: { [key: string]: any } = { 
+/**
+ * Prepara los datos del pago para guardar en Firestore
+ * @private
+ */
+const preparePaymentData = (paymentData: PaymentImportData | Omit<Payment, 'id' | 'updatedAt'>): { [key: string]: any } => {
+  const createdAtTimestamp = parseTimestamp(paymentData.createdAt);
+  const paymentDateTimestamp = parseTimestamp(paymentData.date, true);
+
+  const dataToSave: { [key: string]: any } = {
     projectId: paymentData.projectId,
     amount: paymentData.amount,
     date: paymentDateTimestamp,
@@ -137,104 +166,151 @@ export const addPayment = async (paymentData: PaymentImportData | Omit<Payment, 
   if (paymentData.notes) {
     dataToSave.notes = paymentData.notes;
   }
-  // Guardar el número de cuotas si existe
   if (paymentData.installments && paymentData.installments > 0) {
     dataToSave.installments = paymentData.installments;
   }
 
-  try {
-    // Validar que exista el projectId
-    if (!paymentData.projectId) {
-      throw new Error("Project ID is required for addPayment service.");
-    }
+  return dataToSave;
+};
 
-    // Obtener referencia al proyecto y actualizar saldo
-    const projectRef = doc(firestore, PROJECTS_COLLECTION, paymentData.projectId);
-    const projectSnapshot = await getDoc(projectRef);
+/**
+ * Valida los datos de entrada del pago
+ * @private
+ */
+const validatePaymentInput = (paymentData: PaymentImportData | Omit<Payment, 'id' | 'updatedAt'>): void => {
+  if (!paymentData.projectId) {
+    throw new Error("Project ID is required for addPayment service.");
+  }
+};
 
-    if (!projectSnapshot.exists()) {
-      throw new Error(`Project with ID ${paymentData.projectId} does not exist.`);
-    }
+/**
+ * Calcula el nuevo saldo del proyecto después del pago
+ * @private
+ */
+const calculateNewBalance = (currentBalance: number, paymentAmount: number, isAdjustment: boolean): number => {
+  if (isAdjustment) {
+    return currentBalance - paymentAmount;
+  }
+  return currentBalance + paymentAmount;
+};
 
-    const projectData = projectSnapshot.data() as ProjectDocument;
-    const currentBalance = projectData.balance || 0;
+/**
+ * Procesa la transacción de pago y actualización del proyecto
+ * @private
+ */
+const processPaymentTransaction = async (
+  paymentData: PaymentImportData | Omit<Payment, 'id' | 'updatedAt'>,
+  dataToSave: { [key: string]: any },
+  firestore: Firestore
+): Promise<Payment> => {
+  // Obtener referencia al proyecto
+  const projectRef = doc(firestore, PROJECTS_COLLECTION, paymentData.projectId);
+  const projectSnapshot = await getDoc(projectRef);
 
-    // Calcular nuevo saldo
-    let newBalance = currentBalance;
-    const paymentAmount = paymentData.amount || 0;
+  if (!projectSnapshot.exists()) {
+    throw new Error(`Project with ID ${paymentData.projectId} does not exist.`);
+  }
 
-    if (paymentData.isAdjustment) {
-      // Para ajustes, restar el monto
-      newBalance -= paymentAmount;
-    } else {
-      // Para pagos normales, sumar el monto
-      newBalance += paymentAmount;
-    }
+  const projectData = projectSnapshot.data() as ProjectDocument;
+  const currentBalance = projectData.balance || 0;
+  const paymentAmount = paymentData.amount || 0;
+  const newBalance = calculateNewBalance(currentBalance, paymentAmount, paymentData.isAdjustment || false);
 
-    // Usar batch para actualizar proyecto y añadir pago
-    const batch = writeBatch(firestore);
+  // Usar batch para actualizar proyecto y añadir pago
+  const batch = writeBatch(firestore);
 
-    // Actualizar saldo del proyecto
-    batch.update(projectRef, {
-      balance: newBalance,
+  // Actualizar saldo del proyecto
+  batch.update(projectRef, {
+    balance: newBalance,
+    updatedAt: serverTimestamp()
+  });
+
+  // Añadir nuevo pago
+  const paymentCollectionRef = collection(firestore, PAYMENTS_COLLECTION);
+  const newPaymentRef = doc(paymentCollectionRef);
+  batch.set(newPaymentRef, dataToSave);
+
+  // Ejecutar batch
+  await batch.commit();
+
+  // Obtener datos del nuevo pago
+  const paymentDoc = await getDoc(newPaymentRef);
+  return paymentFromDoc(paymentDoc);
+};
+
+/**
+ * Procesa las cuotas si el pago las tiene
+ * @private
+ */
+const processInstallments = async (savedPayment: Payment, firestore: Firestore): Promise<void> => {
+  const installments = generateInstallments(savedPayment);
+  
+  const installmentsBatch = writeBatch(firestore);
+  
+  installments.forEach(installment => {
+    const installmentId = `${savedPayment.id}_cuota_${installment.installmentNumber}`;
+    const installmentRef = doc(firestore, INSTALLMENTS_COLLECTION, installmentId);
+    
+    installmentsBatch.set(installmentRef, {
+      ...installment,
+      date: Timestamp.fromDate(new Date(installment.date)),
+      projectId: savedPayment.projectId,
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
+  });
+  
+  await installmentsBatch.commit();
+};
 
-    // Añadir nuevo pago
-    const paymentCollectionRef = collection(firestore, PAYMENTS_COLLECTION);
-    const newPaymentRef = doc(paymentCollectionRef);
-    batch.set(newPaymentRef, dataToSave);
+/**
+ * Crea un nuevo pago y actualiza el saldo del proyecto
+ * @param paymentData - Datos del pago a crear
+ * @param firestore - Instancia de Firestore (opcional)
+ * @returns Promise que resuelve con el pago creado
+ * @version 2.1.0 - Refactorizado aplicando principios SOLID
+ */
+export const addPayment = async (paymentData: PaymentImportData | Omit<Payment, 'id' | 'updatedAt'>, firestore = db): Promise<Payment> => {
+  try {
+    paymentLogger.debug('Iniciando creación de pago', {
+      projectId: paymentData.projectId,
+      amount: paymentData.amount,
+      hasInstallments: paymentData.installments && paymentData.installments > 0
+    });
 
-    // Ejecutar batch
-    await batch.commit();
+    const dataToSave = preparePaymentData(paymentData);
 
-    // Obtener datos del nuevo pago
-    const paymentDoc = await getDoc(newPaymentRef);
-    const savedPayment = paymentFromDoc(paymentDoc);
+    // 1. Validar entrada
+    validatePaymentInput(paymentData);
 
-    console.log(`Pago añadido exitosamente. Nuevo saldo del proyecto ${paymentData.projectId}: ${newBalance}`);
-
-    // Si el pago tiene cuotas, guardarlas en Firestore como documentos separados
-    if (savedPayment.installments && savedPayment.installments > 1) {
-      console.log(`Pago con ${savedPayment.installments} cuotas detectado. Guardando cuotas en Firestore...`);
-      
-      // Generar cuotas para este pago
-      const installments = generateInstallments(savedPayment);
-      
-      // Crear batch para guardar cuotas
-      const installmentsBatch = writeBatch(firestore);
-      
-      // Para cada cuota, crear un documento en Firestore
-      installments.forEach(installment => {
-        const installmentId = `${savedPayment.id}_cuota_${installment.installmentNumber}`;
-        const installmentRef = doc(firestore, INSTALLMENTS_COLLECTION, installmentId);
-        
-        installmentsBatch.set(installmentRef, {
-          ...installment,
-          date: Timestamp.fromDate(new Date(installment.date)),
-          projectId: savedPayment.projectId,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
+    // 2. Procesar transacción de pago
+    const savedPayment = await processPaymentTransaction(paymentData, dataToSave, firestore);
+    
+    // 3. Procesar cuotas si existen
+    if (savedPayment.installments && savedPayment.installments > 0) {
+      paymentLogger.debug('Procesando cuotas para pago', {
+        paymentId: savedPayment.id,
+        installments: savedPayment.installments
       });
-      
-      // Guardar todas las cuotas
-      await installmentsBatch.commit();
-      console.log(`Se guardaron ${installments.length} cuotas en Firestore para el pago ${savedPayment.id}`);
+      await processInstallments(savedPayment, firestore);
     }
 
+    paymentLogger.payment('Pago creado exitosamente', savedPayment.id, savedPayment.amount);
     return savedPayment;
   } catch (error) {
-    console.error("Error adding payment:", error);
+    paymentLogger.error('Error al crear pago', error);
     throw error;
   }
 };
 
 export const updatePayment = async (paymentId: string, paymentData: Partial<Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> => {
-  // Note: This function does not currently recalculate project balance if payment amount changes.
-  // That would require fetching the old payment amount, the project, calculating the difference, and then updating.
-  // For simplicity, this is left out, but it's a consideration for full financial accuracy.
-  const paymentDocRef = doc(db, PAYMENTS_COLLECTION, paymentId);
+  try {
+    paymentLogger.debug('Iniciando actualización de pago', { paymentId });
+    
+    // Note: This function does not currently recalculate project balance if payment amount changes.
+    // That would require fetching the old payment amount, the project, calculating the difference, and then updating.
+    // For simplicity, this is left out, but it's a consideration for full financial accuracy.
+    const paymentDocRef = doc(db, PAYMENTS_COLLECTION, paymentId);
   
   const dataToUpdate: { [key: string]: any } = { 
     updatedAt: serverTimestamp() as Timestamp,
@@ -250,66 +326,99 @@ export const updatePayment = async (paymentId: string, paymentData: Partial<Omit
     }
   });
 
-  if (Object.keys(dataToUpdate).length > 1) { // Only update if there's more than just updatedAt
-    await updateDoc(paymentDocRef, dataToUpdate);
+    if (Object.keys(dataToUpdate).length > 1) { // Only update if there's more than just updatedAt
+      await updateDoc(paymentDocRef, dataToUpdate);
+      paymentLogger.info('Pago actualizado exitosamente', { paymentId });
+    } else {
+      paymentLogger.debug('No hay cambios para actualizar', { paymentId });
+    }
+  } catch (error) {
+    paymentLogger.error('Error al actualizar pago', error);
+    throw error;
   }
 };
 
 
 export const deletePayment = async (paymentId: string): Promise<void> => {
-  const paymentDocRef = doc(db, PAYMENTS_COLLECTION, paymentId);
-  const paymentSnap = await getDoc(paymentDocRef);
+  try {
+    paymentLogger.debug('Iniciando eliminación de pago', { paymentId });
+    
+    const paymentDocRef = doc(db, PAYMENTS_COLLECTION, paymentId);
+    const paymentSnap = await getDoc(paymentDocRef);
 
-  if (paymentSnap.exists()) {
-    const paymentToDelete = paymentFromDoc(paymentSnap);
+    if (paymentSnap.exists()) {
+      const paymentToDelete = paymentFromDoc(paymentSnap);
 
-    // Restore balance to project if payment is deleted
-    if (paymentToDelete.projectId && paymentToDelete.amount && paymentToDelete.amount > 0 && !paymentToDelete.isAdjustment) {
-      const projectDocRef = doc(db, PROJECTS_COLLECTION, paymentToDelete.projectId);
-      try {
-        const projectSnap = await getDoc(projectDocRef);
-        if (projectSnap.exists()) {
-          const projectData = projectSnap.data() as ProjectDocument;
-          const currentBalance = projectData.balance ?? (projectData.total ?? 0);
-          const newBalance = currentBalance + paymentToDelete.amount;
-          
-          const projectUpdateData: { balance: number, updatedAt: Timestamp, isPaid?: boolean } = { 
-            balance: newBalance, 
-            updatedAt: serverTimestamp() as Timestamp 
-          };
-          // If balance becomes > 0, it's definitely not fully paid
-          if (newBalance > 0 && projectData.isPaid) {
-            projectUpdateData.isPaid = false;
+      // Restore balance to project if payment is deleted
+      if (paymentToDelete.projectId && paymentToDelete.amount && paymentToDelete.amount > 0 && !paymentToDelete.isAdjustment) {
+        const projectDocRef = doc(db, PROJECTS_COLLECTION, paymentToDelete.projectId);
+        try {
+          const projectSnap = await getDoc(projectDocRef);
+          if (projectSnap.exists()) {
+            const projectData = projectSnap.data() as ProjectDocument;
+            const currentBalance = projectData.balance ?? (projectData.total ?? 0);
+            const newBalance = currentBalance + paymentToDelete.amount;
+            
+            const projectUpdateData: { balance: number, updatedAt: Timestamp, isPaid?: boolean } = { 
+              balance: newBalance, 
+              updatedAt: serverTimestamp() as Timestamp 
+            };
+            // If balance becomes > 0, it's definitely not fully paid
+            if (newBalance > 0 && projectData.isPaid) {
+              projectUpdateData.isPaid = false;
+            }
+
+            await updateDoc(projectDocRef, projectUpdateData);
+            paymentLogger.database('Saldo del proyecto restaurado', {
+              projectId: paymentToDelete.projectId,
+              newBalance,
+              paymentAmount: paymentToDelete.amount
+            });
           }
-
-          await updateDoc(projectDocRef, projectUpdateData);
-          console.log(`Project ${paymentToDelete.projectId} balance restored to ${newBalance} after payment deletion.`);
+        } catch (error) {
+          paymentLogger.error('Error al restaurar saldo del proyecto', error);
         }
-      } catch (error) {
-        console.error(`Error restoring project balance for ${paymentToDelete.projectId} after payment deletion:`, error);
       }
     }
-  }
 
-  await deleteDoc(paymentDocRef);
+    await deleteDoc(paymentDocRef);
+    paymentLogger.payment('Pago eliminado exitosamente', paymentId);
+  } catch (error) {
+    paymentLogger.error('Error al eliminar pago', error);
+    throw error;
+  }
 };
 
 export const deletePaymentsForProject = async (projectId: string): Promise<void> => {
-  const paymentsCollectionRef = collection(db, PAYMENTS_COLLECTION);
-  const q = query(paymentsCollectionRef, where('projectId', '==', projectId));
-  const querySnapshot = await getDocs(q);
-  
-  if (querySnapshot.empty) {
-    return;
-  }
+  try {
+    paymentLogger.debug('Iniciando eliminación de pagos por proyecto', { projectId });
+    
+    const paymentsCollectionRef = collection(db, PAYMENTS_COLLECTION);
+    const q = query(paymentsCollectionRef, where('projectId', '==', projectId));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      paymentLogger.debug('No hay pagos para eliminar en el proyecto', { projectId });
+      return;
+    }
 
-  const batch = writeBatch(db);
-  querySnapshot.docs.forEach(docSnapshot => {
-    batch.delete(docSnapshot.ref);
-  });
-  // Note: This function does not adjust project balance when deleting all payments for a project.
-  // If a project is deleted, its balance effectively becomes irrelevant, or should be reset/archived.
-  await batch.commit();
+    const batch = writeBatch(db);
+    querySnapshot.docs.forEach(docSnapshot => {
+      batch.delete(docSnapshot.ref);
+    });
+    
+    // Note: This function does not adjust project balance when deleting all payments for a project.
+    // If a project is deleted, its balance effectively becomes irrelevant, or should be reset/archived.
+    await batch.commit();
+    
+    paymentLogger.info('Pagos del proyecto eliminados exitosamente', {
+      projectId,
+      deletedCount: querySnapshot.size
+    });
+  } catch (error) {
+    paymentLogger.error('Error al eliminar pagos del proyecto', error);
+    throw error;
+  }
 };
 
 // La interfaz Installment ya está definida al inicio del archivo
@@ -364,12 +473,15 @@ export const generateInstallments = (payment: Payment): Installment[] => {
  */
 export const saveInstallmentsToFirestore = async (payment: Payment, firestore = db): Promise<Installment[]> => {
   try {
-    console.log(`Guardando cuotas para pago ${payment.id}...`);
+    paymentLogger.debug('Guardando cuotas en Firestore', {
+      paymentId: payment.id,
+      installments: payment.installments
+    });
     
     // 1. Generar las cuotas
     const installments = generateInstallments(payment);
     if (installments.length === 0) {
-      console.log('No hay cuotas para guardar');
+      paymentLogger.debug('No se generaron cuotas para el pago', { paymentId: payment.id });
       return [];
     }
     
@@ -395,11 +507,15 @@ export const saveInstallmentsToFirestore = async (payment: Payment, firestore = 
     
     // 4. Ejecutar el batch
     await batch.commit();
-    console.log(`Se guardaron ${installments.length} cuotas en Firestore`);
+    
+    paymentLogger.info('Cuotas guardadas exitosamente en Firestore', {
+      paymentId: payment.id,
+      installmentCount: installments.length
+    });
     
     return installments;
   } catch (error) {
-    console.error('Error guardando cuotas en Firestore:', error);
+    paymentLogger.error('Error al guardar cuotas en Firestore', error);
     throw error;
   }
 };
@@ -417,14 +533,18 @@ export const updateInstallmentStatus = async (
   firestore = db
 ): Promise<boolean> => {
   try {
+    paymentLogger.debug('Actualizando estado de cuota', { installmentId, isPaid });
+    
     const installmentRef = doc(firestore, INSTALLMENTS_COLLECTION, installmentId);
     await updateDoc(installmentRef, {
       isPaid,
       updatedAt: serverTimestamp()
     });
+    
+    paymentLogger.info('Estado de cuota actualizado exitosamente', { installmentId, isPaid });
     return true;
   } catch (error) {
-    console.error(`Error actualizando estado de cuota ${installmentId}:`, error);
+    paymentLogger.error('Error al actualizar estado de cuota', error);
     throw error;
   }
 };
@@ -456,7 +576,6 @@ export const getAllInstallments = async (firestore = db): Promise<Installment[]>
       } as Installment;
     });
   } catch (error) {
-    console.error('Error obteniendo cuotas:', error);
     throw error;
   }
 };
@@ -496,7 +615,6 @@ export const getInstallmentsByPayment = async (
       } as Installment;
     });
   } catch (error) {
-    console.error(`Error obteniendo cuotas para pago ${paymentId}:`, error);
     throw error;
   }
 };
@@ -512,7 +630,7 @@ export const getInstallmentsByPayment = async (
  */
 export const getCurrentMonthInstallmentSum = async (): Promise<number> => {
   try {
-    console.log('Iniciando cálculo de total del mes actual...');
+    paymentLogger.debug('Calculando suma de cuotas del mes actual');
     
     // Fechas importantes
     const now = new Date();
@@ -523,9 +641,10 @@ export const getCurrentMonthInstallmentSum = async (): Promise<number> => {
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     lastDayOfMonth.setHours(23, 59, 59, 999); // Fin del día
     
-    console.log('Rango de fechas para el cálculo:');
-    console.log(`- Desde: ${now.toISOString()} (hoy)`);
-    console.log(`- Hasta: ${lastDayOfMonth.toISOString()} (fin de mes)`);
+    paymentLogger.debug('Rango de fechas para cálculo', {
+      firstDay: firstDayOfMonth.toISOString(),
+      lastDay: lastDayOfMonth.toISOString()
+    });
     
     // Obtenemos todos los pagos a cuotas
     const paymentsCollectionRef = collection(db, PAYMENTS_COLLECTION);
@@ -534,19 +653,18 @@ export const getCurrentMonthInstallmentSum = async (): Promise<number> => {
       where('installments', '>', 1) // Solo pagos a cuotas
     );
 
-    console.log('Ejecutando consulta de pagos a cuotas...');
     const querySnapshot = await getDocs(q);
-    console.log(`Se encontraron ${querySnapshot.size} pagos a cuotas`);
+    paymentLogger.debug('Pagos a cuotas encontrados', { count: querySnapshot.size });
     
     let total = 0;
+    let processedPayments = 0;
+    let validInstallmentsCount = 0;
     
     // Procesar cada pago y generar sus cuotas
     for (const doc of querySnapshot.docs) {
       try {
         const payment = paymentFromDoc(doc);
         const installments = generateInstallments(payment);
-        
-        console.log(`\nProcesando pago ${payment.id} con ${installments.length} cuotas`);
         
         // Filtrar cuotas según los criterios:
         // 1. Del mes actual
@@ -567,28 +685,26 @@ export const getCurrentMonthInstallmentSum = async (): Promise<number> => {
         });
         
         if (validInstallments.length > 0) {
-          console.log(`- Encontradas ${validInstallments.length} cuotas válidas:`);
-          
-          validInstallments.forEach((inst, idx) => {
-            const formattedDate = new Date(inst.date).toLocaleDateString();
-            console.log(`  ${idx + 1}. ${formattedDate} - $${inst.amount.toFixed(2)}`);
-          });
-          
           const monthlyTotal = validInstallments.reduce((sum, inst) => sum + inst.amount, 0);
-          console.log(`- Monto total para este pago: $${monthlyTotal.toFixed(2)}`);
           total += monthlyTotal;
-        } else {
-          console.log('- No hay cuotas que cumplan los criterios');
+          validInstallmentsCount += validInstallments.length;
         }
+        
+        processedPayments++;
       } catch (error) {
-        console.error('Error procesando documento:', doc.id, error);
+        paymentLogger.error('Error procesando pago para cuotas mensuales', error);
       }
     }
 
-    console.log('\nTotal calculado para el mes actual: $' + total.toFixed(2));
+    paymentLogger.info('Cálculo de cuotas mensuales completado', {
+      total,
+      processedPayments,
+      validInstallmentsCount
+    });
+
     return total;
   } catch (error) {
-    console.error('Error calculando total de cuotas del mes actual:', error);
+    paymentLogger.error('Error al calcular suma de cuotas del mes actual', error);
     throw error;
   }
 };
@@ -598,7 +714,8 @@ export const getCurrentMonthInstallmentSum = async (): Promise<number> => {
  */
 export const getTotalPendingInstallmentSum = async (): Promise<number> => {
   try {
-    console.log('Iniciando cálculo de total pendiente...');
+    paymentLogger.debug('Calculando suma total de cuotas pendientes');
+    
     // Obtenemos todos los pagos a cuotas
     const paymentsCollectionRef = collection(db, PAYMENTS_COLLECTION);
     const q = query(
@@ -606,22 +723,20 @@ export const getTotalPendingInstallmentSum = async (): Promise<number> => {
       where('installments', '>', 1) // Solo pagos a cuotas
     );
 
-    console.log('Ejecutando consulta de pagos a cuotas para total pendiente...');
     const querySnapshot = await getDocs(q);
-    console.log(`Se encontraron ${querySnapshot.size} pagos a cuotas`);
+    paymentLogger.debug('Pagos a cuotas para análisis encontrados', { count: querySnapshot.size });
     
     let total = 0;
     const now = new Date();
     now.setHours(0, 0, 0, 0); // Normalizar la fecha actual
-    console.log('Fecha actual normalizada:', now.toISOString());
+    let processedPayments = 0;
+    let totalPendingInstallments = 0;
     
     // Procesar cada pago y generar sus cuotas
     querySnapshot.forEach((doc) => {
       try {
         const payment = paymentFromDoc(doc);
         const installments = generateInstallments(payment);
-        
-        console.log(`Procesando pago ${payment.id} con ${installments.length} cuotas`);
         
         // Filtrar cuotas pendientes (no pagadas y con fecha futura o hoy)
         const pendingInstallments = installments.filter(installment => {
@@ -631,20 +746,26 @@ export const getTotalPendingInstallmentSum = async (): Promise<number> => {
         });
         
         if (pendingInstallments.length > 0) {
-          console.log(`- ${pendingInstallments.length} cuotas pendientes`);
           const pendingTotal = pendingInstallments.reduce((sum, inst) => sum + inst.amount, 0);
-          console.log(`- Monto total pendiente para este pago: ${pendingTotal}`);
           total += pendingTotal;
+          totalPendingInstallments += pendingInstallments.length;
         }
+        
+        processedPayments++;
       } catch (error) {
-        console.error('Error procesando documento para total pendiente:', doc.id, error);
+        paymentLogger.error('Error procesando pago para cuotas pendientes', error);
       }
     });
 
-    console.log('Total pendiente calculado:', total);
+    paymentLogger.info('Cálculo de cuotas pendientes completado', {
+      total,
+      processedPayments,
+      totalPendingInstallments
+    });
+
     return total;
   } catch (error) {
-    console.error('Error calculando total de cuotas pendientes:', error);
+    paymentLogger.error('Error al calcular suma total de cuotas pendientes', error);
     throw error;
   }
 };

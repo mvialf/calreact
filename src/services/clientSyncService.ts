@@ -23,7 +23,6 @@ const CLIENTS_COLLECTION = 'clients';
  * @returns Número de proyectos actualizados
  */
 export const syncProjectClientNames = async (firestore: Firestore = db): Promise<number> => {
-  console.log('🔄 Iniciando sincronización de nombres de cliente...');
   
   try {
     // 1. Obtener todos los clientes
@@ -36,7 +35,6 @@ export const syncProjectClientNames = async (firestore: Firestore = db): Promise
       clientsMap.set(doc.id, clientData.name);
     });
     
-    console.log(`📋 Clientes encontrados: ${clientsMap.size}`);
     
     // 2. Obtener todos los proyectos
     const projectsRef = collection(firestore, PROJECTS_COLLECTION);
@@ -64,7 +62,6 @@ export const syncProjectClientNames = async (firestore: Firestore = db): Promise
       }
     });
     
-    console.log(`🔧 Proyectos a actualizar: ${projectsToUpdate.length}`);
     
     // 4. Actualizar proyectos en batch
     if (projectsToUpdate.length > 0) {
@@ -79,13 +76,11 @@ export const syncProjectClientNames = async (firestore: Firestore = db): Promise
       });
       
       await batch.commit();
-      console.log(`✅ ${projectsToUpdate.length} proyectos actualizados exitosamente`);
     }
     
     return projectsToUpdate.length;
     
   } catch (error) {
-    console.error('❌ Error en sincronización de nombres de cliente:', error);
     throw error;
   }
 };
@@ -111,7 +106,6 @@ export const getClientNameById = async (
     
     return null;
   } catch (error) {
-    console.error(`❌ Error al obtener cliente ${clientId}:`, error);
     return null;
   }
 };
@@ -139,7 +133,6 @@ export const syncSingleProjectClientName = async (
     
     // 2. Verificar si necesita sincronización
     if (!projectData.clientId) {
-      console.warn(`⚠️ Proyecto ${projectId} no tiene clientId`);
       return false;
     }
     
@@ -147,7 +140,6 @@ export const syncSingleProjectClientName = async (
     const clientName = await getClientNameById(projectData.clientId, firestore);
     
     if (!clientName) {
-      console.warn(`⚠️ Cliente ${projectData.clientId} no encontrado`);
       return false;
     }
     
@@ -158,15 +150,12 @@ export const syncSingleProjectClientName = async (
         updatedAt: new Date()
       });
       
-      console.log(`✅ Proyecto ${projectId} sincronizado con cliente: ${clientName}`);
       return true;
     }
     
-    console.log(`ℹ️ Proyecto ${projectId} ya está sincronizado`);
     return false;
     
   } catch (error) {
-    console.error(`❌ Error al sincronizar proyecto ${projectId}:`, error);
     throw error;
   }
 };
@@ -244,7 +233,6 @@ export const getProjectClientSyncStats = async (firestore: Firestore = db): Prom
       projectsNeedingSync
     };
   } catch (error) {
-    console.error('❌ Error al obtener estadísticas:', error);
     throw error;
   }
 };

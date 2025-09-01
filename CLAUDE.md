@@ -317,3 +317,7 @@ import { createEvent } from '@/services/eventService'; // NO EXISTE
 3. Implementar validaciones en `@/utils/[domain]Validation.ts`
 4. Crear componentes especializados
 5. Seguir patrón de sincronización automática
+
+## Task Master AI Instructions
+**Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
+@./.taskmaster/CLAUDE.md

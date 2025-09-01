@@ -32,7 +32,6 @@ export async function getProjectReferences(firestore: Firestore = db): Promise<R
       };
     });
   } catch (error) {
-    console.error('Error al obtener referencias de proyectos:', error);
     return [];
   }
 }
@@ -55,7 +54,6 @@ export async function getAfterSalesReferences(firestore: Firestore = db): Promis
       };
     });
   } catch (error) {
-    console.error('Error al obtener referencias de postventa:', error);
     return [];
   }
 }
@@ -78,7 +76,6 @@ export async function getVisitReferences(firestore: Firestore = db): Promise<Ref
       };
     });
   } catch (error) {
-    console.error('Error al obtener referencias de visitas:', error);
     return [];
   }
 }
@@ -130,7 +127,6 @@ export async function getReferenceById(
     const references = await getReferencesByType(type, firestore);
     return references.find(ref => ref.id === id) || null;
   } catch (error) {
-    console.error(`Error al obtener referencia por ID ${id}:`, error);
     return null;
   }
 }

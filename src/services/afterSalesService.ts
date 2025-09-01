@@ -149,7 +149,6 @@ export const addAfterSales = async (afterSalesData: Omit<AfterSales, 'id' | 'cre
     
     return afterSalesFromDoc(newDocSnap);
   } catch (error) {
-    console.error('Error al guardar la postventa:', error);
     throw new Error(`Error al guardar la postventa: ${error instanceof Error ? error.message : String(error)}`);
   }
 };

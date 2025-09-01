@@ -1,0 +1,294 @@
+# ⚙️ TaskMaster Setup - Configuración Completa
+
+**Estado:** Configuración completada, esperando API key de Anthropic  
+**Versión TaskMaster:** 0.25.1  
+**Fecha:** Septiembre 2025  
+
+## 🎯 RESUMEN DE CONFIGURACIÓN
+
+✅ **TaskMaster inicializado** correctamente en el proyecto  
+✅ **Archivos de configuración** modificados y actualizados  
+✅ **Estructura de directorios** creada correctamente  
+🔄 **Pendiente:** Agregar API key real de Anthropic  
+
+## 📁 ARCHIVOS YA CONFIGURADOS
+
+### **1. `.env.local` (Configurado)**
+```bash
+# ============================================
+# CONFIGURACIÓN TASKMASTER AI
+# ============================================
+# Anthropic API Key (Claude) - REQUERIDO para funciones principales
+# Formato: sk-ant-api03-... (Reemplaza con tu API key real)
+ANTHROPIC_API_KEY=sk-ant-api03-TU_API_KEY_AQUI
+
+# Nota: Sin Perplexity, las funciones de research usarán el modelo de Anthropic
+```
+
+### **2. `.mcp.json` (Configurado)**
+```json
+"task-master": {
+    "type": "stdio",
+    "command": "npx",
+    "args": [
+        "-y",
+        "--package=task-master-ai",
+        "task-master-ai"
+    ],
+    "env": {
+        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}"
+    }
+}
+```
+
+### **3. `.taskmaster/config.json` (Actualizado)**
+```json
+{
+  "models": {
+    "main": {
+      "provider": "anthropic",
+      "modelId": "claude-3-5-sonnet-20241022",
+      "maxTokens": 120000,
+      "temperature": 0.2
+    },
+    "research": {
+      "provider": "anthropic",
+      "modelId": "claude-3-5-sonnet-20241022",
+      "maxTokens": 120000,
+      "temperature": 0.1
+    },
+    "fallback": {
+      "provider": "anthropic",
+      "modelId": "claude-3-5-haiku-20241022",
+      "maxTokens": 120000,
+      "temperature": 0.2
+    }
+  }
+}
+```
+
+### **4. PRD Creado**
+- **Ubicación:** `.taskmaster/docs/prd.txt`
+- **Estado:** ✅ Completo y listo para parsing
+- **Content:** Plan detallado de refactorización híbrida
+
+## 🔑 CONFIGURAR API KEY (ACCIÓN REQUERIDA)
+
+### **Paso 1: Obtener API Key**
+1. Ve a: https://console.anthropic.com/
+2. Crea una API key (formato: `sk-ant-api03-...`)
+3. Copia la key completa
+
+### **Paso 2: Agregar al Proyecto**
+Edita el archivo `.env.local` línea 72:
+```bash
+# Reemplaza esto:
+ANTHROPIC_API_KEY=sk-ant-api03-TU_API_KEY_AQUI
+
+# Con tu API key real:
+ANTHROPIC_API_KEY=sk-ant-api03-[tu-key-real-completa]
+```
+
+### **Paso 3: Reiniciar Claude Code**
+```bash
+# Cierra Claude Code completamente
+# Vuelve a abrirlo para cargar las nuevas variables de entorno
+claude
+```
+
+## 🚀 COMANDOS TASKMASTER ESENCIALES
+
+### **Verificación de Configuración**
+```bash
+# Verificar modelos configurados
+task-master models
+
+# Ver estado actual del proyecto
+task-master list
+
+# Verificar TaskMaster funciona
+task-master --version
+```
+
+### **Generar Tareas desde PRD**
+```bash
+# Comando principal para generar tareas
+task-master parse-prd .taskmaster/docs/prd.txt
+
+# Con más tareas específicas (recomendado)
+task-master parse-prd .taskmaster/docs/prd.txt --num-tasks 17
+
+# Con análisis de investigación (requiere API key)
+task-master parse-prd .taskmaster/docs/prd.txt --research
+```
+
+### **Gestión de Tareas Diaria**
+```bash
+# Ver próxima tarea disponible
+task-master next
+
+# Ver detalles de tarea específica
+task-master show 1
+
+# Marcar tarea como en progreso
+task-master set-status --id=1 --status=in-progress
+
+# Marcar tarea como completada
+task-master set-status --id=1 --status=done
+
+# Actualizar tarea con notas
+task-master update-subtask --id=1.1 --prompt="Implementé validación TypeScript"
+```
+
+### **Análisis y Planificación**
+```bash
+# Analizar complejidad de tareas
+task-master analyze-complexity --research
+
+# Expandir tarea en subtareas
+task-master expand --id=1 --research
+
+# Expandir todas las tareas elegibles
+task-master expand --all --research
+
+# Ver reporte de complejidad
+task-master complexity-report
+```
+
+## 🔧 COMANDOS MCP (DENTRO DE CLAUDE CODE)
+
+### **Generación y Setup**
+- `mcp__task-master__parse_prd` - Generar tareas desde PRD
+- `mcp__task-master__models` - Ver configuración de modelos
+- `mcp__task-master__analyze_project_complexity` - Análisis de complejidad
+
+### **Gestión de Tareas**
+- `mcp__task-master__get_tasks` - Ver todas las tareas
+- `mcp__task-master__next_task` - Siguiente tarea disponible
+- `mcp__task-master__get_task` - Detalles de tarea específica
+- `mcp__task-master__set_task_status` - Cambiar estado de tarea
+
+### **Actualización de Tareas**
+- `mcp__task-master__add_task` - Agregar nueva tarea
+- `mcp__task-master__expand_task` - Expandir tarea en subtareas
+- `mcp__task-master__update_task` - Actualizar tarea específica
+- `mcp__task-master__update_subtask` - Actualizar subtarea
+
+## 📂 ESTRUCTURA DE ARCHIVOS TASKMASTER
+
+```
+proyecto/
+├── .taskmaster/
+│   ├── tasks/                    # Tareas generadas
+│   │   ├── tasks.json           # Base de datos principal
+│   │   ├── task-1.md           # Archivos individuales
+│   │   └── task-2.md
+│   ├── docs/                    # Documentos fuente
+│   │   └── prd.txt             # ✅ PRD creado
+│   ├── reports/                 # Análisis generados
+│   │   └── task-complexity-report.json
+│   └── config.json             # ✅ Configuración de modelos
+├── .env.local                  # ✅ Variables de entorno
+├── .mcp.json                   # ✅ Configuración MCP
+└── docs/                       # 📁 Documentación del proyecto
+```
+
+## 🔍 VERIFICAR CONFIGURACIÓN
+
+### **Test de Conexión**
+```bash
+# 1. Verificar API key está configurada
+cat .env.local | grep ANTHROPIC_API_KEY
+
+# 2. Probar TaskMaster
+task-master models
+
+# 3. Ver estado del proyecto
+task-master list
+
+# 4. Si todo funciona, probar generación
+task-master parse-prd .taskmaster/docs/prd.txt --num-tasks 5
+```
+
+### **Solución de Problemas**
+
+#### **Error: "AI service call failed"**
+- ✅ Verificar que API key esté en `.env.local`
+- ✅ Verificar formato: `sk-ant-api03-...`
+- ✅ Reiniciar Claude Code
+- ✅ Verificar saldo en cuenta de Anthropic
+
+#### **Error: "Command not found"**
+```bash
+# Reinstalar TaskMaster
+npm install -g task-master-ai
+
+# O usar npx directamente
+npx task-master-ai models
+```
+
+#### **Error: "MCP connection failed"**
+- ✅ Verificar `.mcp.json` tiene TaskMaster configurado
+- ✅ Reiniciar Claude Code
+- ✅ Usar CLI como fallback si es necesario
+
+## 📋 WORKFLOW RECOMENDADO
+
+### **Setup Inicial (Una vez)**
+1. ✅ Configurar API key en `.env.local`
+2. ✅ Reiniciar Claude Code
+3. ✅ Verificar: `task-master models`
+4. ✅ Generar tareas: `task-master parse-prd`
+
+### **Desarrollo Diario**
+```bash
+# Inicio de sesión
+task-master next                    # Ver próxima tarea
+task-master show <id>              # Revisar detalles
+task-master set-status --id=<id> --status=in-progress
+
+# Durante implementación
+task-master update-subtask --id=<id> --prompt="Progreso actual"
+
+# Al completar
+task-master set-status --id=<id> --status=done
+task-master next                    # Siguiente tarea
+```
+
+### **Para Refactorización Específica**
+1. **Fase 1:** Trabajar tareas 1-7 (Core Services)
+2. **Fase 2:** Trabajar tareas 8-13 (Component Architecture) 
+3. **Fase 3:** Trabajar tareas 14-17 (Clean Up)
+
+## 🎯 BENEFICIOS DE USAR TASKMASTER
+
+### **Con API Key de Anthropic:**
+- ✅ Generación automática de tareas desde PRD
+- ✅ Análisis inteligente de complejidad
+- ✅ Expansión automática en subtareas
+- ✅ Sugerencias contextuales de implementación
+- ✅ Updates inteligentes de tareas
+
+### **Sin Research API (Perplexity):**
+- ❌ No búsqueda web en tiempo real
+- ✅ Pero sí análisis local con Claude
+- ✅ Todas las demás funciones disponibles
+
+## 📞 SOPORTE Y RECURSOS
+
+### **Documentación Oficial**
+- TaskMaster: https://www.npmjs.com/package/task-master-ai
+- Anthropic API: https://docs.anthropic.com/
+- Claude Code: https://claude.ai/code
+
+### **Archivos de Referencia en el Proyecto**
+- `REFACTORIZACION_HIBRIDA_PLAN.md` - Plan completo
+- `TAREAS_REFACTORIZACION.md` - Lista estructurada de tareas
+- `ESTADO_ACTUAL_PROYECTO.md` - Diagnóstico detallado
+- `PROXIMOS_PASOS.md` - Workflow de continuación
+
+---
+
+*Configuración completada: Septiembre 2025*  
+*Estado: Listo para generar tareas*  
+*Próximo paso: Agregar API key de Anthropic*
