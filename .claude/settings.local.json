@@ -48,13 +48,33 @@
       "mcp__serena__search_for_pattern",
       "mcp__serena__find_file",
       "mcp__serena__replace_regex",
-      "mcp__serena__find_symbol"
+      "mcp__serena__find_symbol",
+      "mcp__serena__create_text_file",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "WebFetch(domain:playwright.dev)",
+      "Bash(sudo ln:*)",
+      "Bash(source ~/.bashrc)",
+      "Bash(google-chrome:*)",
+      "Read(/usr/local/bin/**)",
+      "Read(/home/mau/.cache/ms-playwright/chromium-1187/chrome-linux/**)",
+      "Bash(sudo rm:*)",
+      "Read(/usr/local/bin/**)",
+      "Bash(chrome:*)",
+      "Read(/opt/google/chrome/**)",
+      "Read(/opt/google/chrome/**)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__filesystem__directory_tree",
+      "mcp__filesystem__list_directory",
+      "mcp__filesystem__read_multiple_files"
     ],
     "deny": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "serena",
     "task-master",
-    "firebase"
+    "firebase",
+    "shadcn-ui"
   ]
 }
